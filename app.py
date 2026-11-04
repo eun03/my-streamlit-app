@@ -14,53 +14,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# 디자인 설정
-st.markdown("""
-<style>
-[data-testid="stAppViewContainer"] {
-    background-color: #F3F6FD;
-}
-
-[data-testid="stSidebar"] {
-    background-color: #192D52;
-}
-
-[data-testid="stSidebar"] * {
-    color: #FFFFFF;
-}
-
-[data-testid="stSidebar"] > div:first-child {
-    padding-top: 30px;
-}
-
-.block-container {
-    padding-top: 2rem;
-    padding-bottom: 2rem;
-}
-
-[data-testid="stHeader"] {
-    background-color: transparent;
-}
-
-.stButton > button {
-    border-radius: 8px;
-    border: 1px solid #DCE3F0;
-    background-color: white;
-    color: #192D52;
-}
-
-.stButton > button:hover {
-    background-color: #EEF1FF;
-    color: #4D5BD4;
-    border-color: #AAB5FF;
-}
-
-[data-testid="stChatInput"] {
-    background-color: white;
-}
-</style>
-""", unsafe_allow_html=True)
-
 
 # 세션 상태 초기화
 if "chat_history" not in st.session_state:
@@ -74,6 +27,103 @@ if "chat_counter" not in st.session_state:
 
 if "chat_page" not in st.session_state:
     st.session_state.chat_page = "새로운 대화"
+
+if "menu" not in st.session_state:
+    st.session_state.menu = "🏠  홈"
+
+
+# 디자인 설정
+st.markdown("""
+<style>
+
+/* 전체 메인 배경 */
+[data-testid="stAppViewContainer"] {
+    background-color: #F3F6FD;
+}
+
+/* 왼쪽 사이드바 */
+[data-testid="stSidebar"] {
+    background-color: #192D52;
+}
+
+[data-testid="stSidebar"] > div:first-child {
+    padding-top: 30px;
+}
+
+/* 사이드바 기본 글씨 */
+[data-testid="stSidebar"] * {
+    color: #FFFFFF;
+}
+
+/* 메인 화면 여백 */
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+/* 상단 영역 */
+[data-testid="stHeader"] {
+    background-color: transparent;
+}
+
+/* 사이드바 메인 메뉴 버튼 */
+[data-testid="stSidebar"] .stButton > button {
+    width: 100%;
+    min-height: 42px;
+    border-radius: 9px;
+    border: 1px solid transparent;
+    background-color: rgba(255, 255, 255, 0.07);
+    color: #FFFFFF;
+    text-align: left;
+    padding: 10px 14px;
+    transition: 0.2s;
+}
+
+/* 메인 메뉴 마우스 올렸을 때 */
+[data-testid="stSidebar"] .stButton > button:hover {
+    background-color: rgba(255, 255, 255, 0.16);
+    color: #FFFFFF;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* 하위 메뉴 버튼 */
+[data-testid="stSidebar"] .st-key-sub_new button,
+[data-testid="stSidebar"] .st-key-sub_recent button {
+    background-color: rgba(255, 255, 255, 0.035);
+    color: #B8C5DC;
+    font-size: 14px;
+    padding-left: 24px;
+}
+
+/* 하위 메뉴 마우스 올렸을 때 */
+[data-testid="stSidebar"] .st-key-sub_new button:hover,
+[data-testid="stSidebar"] .st-key-sub_recent button:hover {
+    background-color: rgba(255, 255, 255, 0.13);
+    color: #FFFFFF;
+}
+
+/* 메인 화면 버튼 */
+.stMain .stButton > button {
+    border-radius: 8px;
+    border: 1px solid #DCE3F0;
+    background-color: white;
+    color: #192D52;
+}
+
+/* 메인 화면 버튼 마우스 올렸을 때 */
+.stMain .stButton > button:hover {
+    background-color: #EEF1FF;
+    color: #4D5BD4;
+    border-color: #AAB5FF;
+}
+
+/* 채팅 입력창 */
+[data-testid="stChatInput"] {
+    background-color: white;
+}
+
+</style>
+""", unsafe_allow_html=True)
 
 
 # 대화 찾기 함수
@@ -96,7 +146,7 @@ def send_message(chat, user_input):
         "content": user_input
     })
 
-    # 시스템 메시지 + 이전 대화 내용
+    # 시스템 메시지
     input_messages = [
         {
             "role": "system",
@@ -107,9 +157,9 @@ def send_message(chat, user_input):
         }
     ]
 
+    # 이전 대화 내용 추가
     input_messages.extend(chat["messages"])
 
-    # AI 답변 생성
     try:
 
         with st.spinner("에이블이 답변을 작성하고 있습니다..."):
@@ -127,7 +177,7 @@ def send_message(chat, user_input):
             "content": answer
         })
 
-        # 최근 대화 시간 갱신
+        # 대화 시간 갱신
         chat["updated_at"] = datetime.now()
 
         # 최신 대화가 위쪽으로 오도록 정렬
@@ -155,7 +205,10 @@ def show_messages(chat):
             st.write(message["content"])
 
 
+# --------------------------------------------------
 # 왼쪽 사이드바
+# --------------------------------------------------
+
 with st.sidebar:
 
     st.title("ABLE")
@@ -165,68 +218,117 @@ with st.sidebar:
 
     st.subheader("메뉴")
 
-    menu = st.radio(
-        "메뉴 선택",
-        [
-            "🏠 홈",
-            "📅 일정",
-            "📋 회의",
-            "✉️ 이메일",
-            "🎙️ 음성 비서",
-            "💬 AI 챗봇"
-        ],
-        label_visibility="collapsed"
-    )
+    # 메인 메뉴 목록
+    menu_list = [
+        "🏠  홈",
+        "📅  일정",
+        "📋  회의",
+        "✉️  이메일",
+        "🎙️  음성 비서",
+        "💬  AI 챗봇"
+    ]
 
-    # AI 챗봇을 선택했을 때만 하위 메뉴 표시
-    if menu == "💬 AI 챗봇":
+    # 메인 메뉴 버튼 생성
+    for i, item in enumerate(menu_list):
 
-        st.divider()
+        if st.button(
+            item,
+            key=f"menu_{i}",
+            use_container_width=True
+        ):
+
+            st.session_state.menu = item
+
+            # 다른 메뉴로 이동하면 선택된 대화 초기화
+            if item != "💬  AI 챗봇":
+                st.session_state.chat_page = "새로운 대화"
+                st.session_state.selected_chat_id = None
+
+            st.rerun()
+
+    # AI 챗봇 선택 시 하위 메뉴 표시
+    if st.session_state.menu == "💬  AI 챗봇":
+
+        st.markdown(
+            "<div style='height:8px'></div>",
+            unsafe_allow_html=True
+        )
 
         st.markdown("**AI 챗봇**")
 
-        if st.button("✏️ 새로운 대화", use_container_width=True):
+        # 새로운 대화 버튼
+        if st.button(
+            "✏️  새로운 대화",
+            key="sub_new",
+            use_container_width=True
+        ):
 
             st.session_state.chat_page = "새로운 대화"
             st.session_state.selected_chat_id = None
+
             st.rerun()
 
-        if st.button("🕘 최근 대화", use_container_width=True):
+        # 최근 대화 버튼
+        if st.button(
+            "🕘  최근 대화",
+            key="sub_recent",
+            use_container_width=True
+        ):
 
             st.session_state.chat_page = "최근 대화"
             st.session_state.selected_chat_id = None
+
             st.rerun()
 
 
+# 현재 선택한 메뉴
+menu = st.session_state.menu
+
+
+# --------------------------------------------------
 # 홈 화면
-if menu == "🏠 홈":
+# --------------------------------------------------
+
+if menu == "🏠  홈":
 
     st.title("메인 화면")
 
 
+# --------------------------------------------------
 # 일정 화면
-elif menu == "📅 일정":
+# --------------------------------------------------
+
+elif menu == "📅  일정":
 
     st.title("일정")
     st.write("일정 관리 페이지입니다.")
 
 
+# --------------------------------------------------
 # 회의 화면
-elif menu == "📋 회의":
+# --------------------------------------------------
+
+elif menu == "📋  회의":
 
     st.title("회의")
     st.write("회의 관리 페이지입니다.")
 
 
+# --------------------------------------------------
 # 이메일 화면
-elif menu == "✉️ 이메일":
+# --------------------------------------------------
+
+elif menu == "✉️  이메일":
 
     st.title("이메일")
     st.write("이메일 관리 페이지입니다.")
 
 
+# --------------------------------------------------
 # 음성 비서 화면
-elif menu == "🎙️ 음성 비서":
+# --------------------------------------------------
+
+elif menu == "🎙️  음성 비서":
 
     st.title("음성 비서")
 
@@ -290,12 +392,16 @@ elif menu == "🎙️ 음성 비서":
             st.write(answer)
 
 
+# --------------------------------------------------
 # AI 챗봇 화면
-elif menu == "💬 AI 챗봇":
+# --------------------------------------------------
 
-    # -------------------------
-    # 1. 새로운 대화 화면
-    # -------------------------
+elif menu == "💬  AI 챗봇":
+
+    # ==============================================
+    # 새로운 대화
+    # ==============================================
+
     if st.session_state.chat_page == "새로운 대화":
 
         st.title("✏️ 새로운 대화")
@@ -306,17 +412,22 @@ elif menu == "💬 AI 챗봇":
             st.session_state.selected_chat_id
         )
 
-        # 이전 대화가 있으면 출력
+        # 기존 대화 내용 출력
         if selected_chat is not None:
 
             show_messages(selected_chat)
 
         else:
 
-            st.write("안녕하세요! 에이블입니다. 무엇을 도와드릴까요?")
+            st.write(
+                "안녕하세요! 에이블입니다. 무엇을 도와드릴까요?"
+            )
 
         # 화면 아래쪽 채팅 입력창
-        user_input = st.chat_input("메시지를 입력하세요.")
+        user_input = st.chat_input(
+            "메시지를 입력하세요.",
+            key="new_chat_input"
+        )
 
         if user_input:
 
@@ -346,22 +457,23 @@ elif menu == "💬 AI 챗봇":
             st.rerun()
 
 
-    # -------------------------
-    # 2. 최근 대화 화면
-    # -------------------------
+    # ==============================================
+    # 최근 대화
+    # ==============================================
+
     elif st.session_state.chat_page == "최근 대화":
 
         st.title("🕘 최근 대화")
         st.caption("이전에 나눈 대화를 확인하고 이어서 대화할 수 있습니다.")
 
-        # 대화 목록이 없는 경우
+        # 대화가 없는 경우
         if not st.session_state.chat_history:
 
             st.info("아직 저장된 대화가 없습니다.")
 
         else:
 
-            # 최신 대화가 위쪽에 오도록 정렬
+            # 최신 대화순 정렬
             st.session_state.chat_history.sort(
                 key=lambda x: x["updated_at"],
                 reverse=True
@@ -394,7 +506,7 @@ elif menu == "💬 AI 챗봇":
                         chat["updated_at"].strftime("%m/%d")
                     )
 
-            # 선택한 대화 확인
+            # 선택한 대화 가져오기
             selected_chat = get_chat(
                 st.session_state.selected_chat_id
             )
@@ -431,10 +543,10 @@ elif menu == "💬 AI 챗봇":
 
                         st.warning("제목을 입력해주세요.")
 
-                # 선택한 대화 내용 출력
+                # 이전 대화 출력
                 show_messages(selected_chat)
 
-                # 선택한 대화 이어서 질문하기
+                # 기존 대화 이어서 질문하기
                 user_input = st.chat_input(
                     "이 대화에서 계속 질문하세요.",
                     key=f"recent_chat_input_{selected_chat['id']}"
