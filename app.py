@@ -1,4 +1,3 @@
-
 import os, base64, json, requests
 import streamlit as st
 from openai import OpenAI
@@ -99,6 +98,18 @@ if "schedule_month" not in st.session_state:
 
 if "schedule_edit_id" not in st.session_state:
     st.session_state.schedule_edit_id = None
+
+
+# 홈 화면 업무 체크리스트 세션 상태
+if "home_tasks" not in st.session_state:
+    st.session_state.home_tasks = [
+        {"id": 0, "title": "이번 주 업무 우선순위 정리", "done": False},
+        {"id": 1, "title": "회의 자료 검토 요청하기", "done": False},
+        {"id": 2, "title": "이메일 초안 확인하기", "done": True}
+    ]
+
+if "home_task_counter" not in st.session_state:
+    st.session_state.home_task_counter = 3
 
 
 # ==========================================
@@ -240,6 +251,40 @@ st.markdown("""
 /* 채팅 입력창 */
 [data-testid="stChatInput"] {
     background-color: white;
+}
+
+/* 홈 화면 대시보드 */
+.home-stat-card {
+    background: #FFFFFF;
+    border: 1px solid #E1E7F2;
+    border-radius: 22px;
+    padding: 24px 26px;
+    min-height: 148px;
+    box-shadow: 0 5px 18px rgba(35, 55, 95, 0.04);
+}
+.home-stat-label {
+    color: #8A9AB5;
+    font-size: 16px;
+    font-weight: 600;
+}
+.home-stat-number {
+    color: #192D52;
+    font-size: 38px;
+    font-weight: 700;
+    margin-top: 20px;
+    line-height: 1.2;
+}
+.home-task-card {
+    background: #FFFFFF;
+    border: 1px solid #E1E7F2;
+    border-radius: 24px;
+    padding: 26px 30px;
+    box-shadow: 0 5px 18px rgba(35, 55, 95, 0.04);
+}
+.home-task-heading {
+    color: #192D52;
+    font-size: 22px;
+    font-weight: 700;
 }
 
 </style>
@@ -699,7 +744,124 @@ menu = st.session_state.menu
 
 if menu == "🏠  홈":
 
-    st.title("메인 화면")
+    # 오늘 날짜 기준 대시보드 데이터 계산
+    today = date.today()
+
+    today_schedule_count = sum(
+        1 for event in st.session_state.schedule_events
+        if event["start_date"] <= today <= event["end_date"]
+    )
+    today_meeting_count = sum(
+        1 for event in st.session_state.meeting_events
+        if event["date"] == today
+    )
+    today_total_count = today_schedule_count + today_meeting_count
+
+    unfinished_task_count = sum(
+        1 for task in st.session_state.home_tasks
+        if not task["done"]
+    )
+    conversation_count = len(st.session_state.chat_history)
+
+    # 상단 요약 카드
+    card1, card2, card3 = st.columns(3)
+
+    with card1:
+        st.markdown(
+            f"""
+            <div class="home-stat-card">
+                <div class="home-stat-label">오늘의 일정　<span style="background:#F0EDFF;color:#7565F5;padding:4px 9px;border-radius:9px;">예시</span></div>
+                <div class="home-stat-number">{today_total_count}<span style="font-size:18px;font-weight:500;">건</span></div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with card2:
+        st.markdown(
+            f"""
+            <div class="home-stat-card">
+                <div class="home-stat-label">할 일 목록　<span style="float:right;color:#14B8A6;font-size:24px;">✓</span></div>
+                <div class="home-stat-number">{unfinished_task_count}<span style="font-size:18px;font-weight:500;">개</span></div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with card3:
+        st.markdown(
+            f"""
+            <div class="home-stat-card">
+                <div class="home-stat-label">대화 기록　<span style="float:right;color:#F5A623;font-size:23px;">☏</span></div>
+                <div class="home-stat-number">{conversation_count}<span style="font-size:18px;font-weight:500;">건</span></div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    st.write("")
+
+    # 업무 체크리스트
+    with st.container(border=True):
+        heading_col, add_col = st.columns([8, 1.3], vertical_alignment="center")
+
+        with heading_col:
+            st.markdown(
+                '<div class="home-task-heading">▢　나의 업무 체크리스트</div>',
+                unsafe_allow_html=True
+            )
+
+        with add_col:
+            add_task_clicked = st.button(
+                "+ 할 일 추가",
+                key="home_add_task_toggle",
+                use_container_width=True
+            )
+
+        if add_task_clicked:
+            st.session_state.home_show_add_task = not st.session_state.get(
+                "home_show_add_task", False
+            )
+
+        if st.session_state.get("home_show_add_task", False):
+            with st.form("home_add_task_form", clear_on_submit=True):
+                new_task_title = st.text_input("할 일 내용", placeholder="새로운 업무를 입력하세요.")
+                add_task_submit = st.form_submit_button("추가")
+
+            if add_task_submit:
+                if new_task_title.strip():
+                    st.session_state.home_tasks.append({
+                        "id": st.session_state.home_task_counter,
+                        "title": new_task_title.strip(),
+                        "done": False
+                    })
+                    st.session_state.home_task_counter += 1
+                    st.session_state.home_show_add_task = False
+                    st.rerun()
+                else:
+                    st.warning("할 일 내용을 입력해주세요.")
+
+        st.write("")
+        for task in st.session_state.home_tasks:
+            task_col, delete_col = st.columns([10, 0.5], vertical_alignment="center")
+
+            with task_col:
+                checked = st.checkbox(
+                    task["title"],
+                    value=task["done"],
+                    key=f"home_task_check_{task['id']}"
+                )
+                if checked != task["done"]:
+                    task["done"] = checked
+                    st.rerun()
+
+            with delete_col:
+                if st.button("×", key=f"home_task_delete_{task['id']}"):
+                    st.session_state.home_tasks = [
+                        item for item in st.session_state.home_tasks
+                        if item["id"] != task["id"]
+                    ]
+                    st.rerun()
 
 
 # ==========================================
