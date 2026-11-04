@@ -484,20 +484,17 @@ elif menu == "🎙️  음성 비서":
             "음성으로 업무를 요청하고 STT 변환 결과와 AI 답변을 확인하세요."
         )
 
-        # 텍스트 파일 업로드
         uploaded_file = st.file_uploader(
             "텍스트 파일 업로드",
             type=["txt"],
             key="command_file"
         )
 
-        # 음성 녹음
         audio_value = st.audio_input(
             "무엇을 도와드릴까요?",
             key="command_audio"
         )
 
-        # 실행 버튼
         if st.button("실행", key="command_submit"):
 
             if audio_value is None:
@@ -513,7 +510,6 @@ elif menu == "🎙️  음성 비서":
 
                         transcript_text = speech_to_text(audio_value)
 
-                    # STT 결과 표시
                     st.subheader("음성 인식 결과")
                     st.write(transcript_text)
 
@@ -534,7 +530,6 @@ elif menu == "🎙️  음성 비서":
                             + file_text
                         )
 
-                    # 대화 기록에 사용자 메시지 저장
                     st.session_state.voice_messages.append({
                         "role": "user",
                         "content": user_message
@@ -547,13 +542,11 @@ elif menu == "🎙️  음성 비서":
                             st.session_state.voice_messages
                         )
 
-                    # AI 답변 저장
                     st.session_state.voice_messages.append({
                         "role": "assistant",
                         "content": answer
                     })
 
-                    # AI 답변 표시
                     st.subheader("AI 답변")
                     st.write(answer)
 
@@ -587,12 +580,12 @@ elif menu == "🎙️  음성 비서":
             key="realtime_audio"
         )
 
-        # 대화하기 버튼
-        if st.button("대화하기", key="realtime_submit"):
+        # 음성 명령과 동일한 실행 버튼
+        if st.button("실행", key="realtime_submit"):
 
             if audio_value is None:
 
-                st.warning("먼저 음성을 녹음해주세요.")
+                st.warning("음성을 녹음해주세요.")
 
             else:
 
@@ -653,13 +646,6 @@ elif menu == "🎙️  음성 비서":
                 except Exception as e:
 
                     st.error(f"음성 대화 중 오류가 발생했습니다: {e}")
-
-        # 대화 초기화
-        if st.button("대화 초기화", key="realtime_reset"):
-
-            st.session_state.realtime_messages = []
-
-            st.rerun()
 
 
 # ==========================================
