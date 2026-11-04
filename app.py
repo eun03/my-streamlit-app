@@ -81,6 +81,26 @@ if "meeting_task_result" not in st.session_state:
     st.session_state.meeting_task_result = ""
 
 
+# 일정 기능 세션 상태
+if "schedule_events" not in st.session_state:
+    st.session_state.schedule_events = []
+
+if "schedule_counter" not in st.session_state:
+    st.session_state.schedule_counter = 0
+
+if "schedule_selected_date" not in st.session_state:
+    st.session_state.schedule_selected_date = date.today()
+
+if "schedule_year" not in st.session_state:
+    st.session_state.schedule_year = date.today().year
+
+if "schedule_month" not in st.session_state:
+    st.session_state.schedule_month = date.today().month
+
+if "schedule_edit_id" not in st.session_state:
+    st.session_state.schedule_edit_id = None
+
+
 # ==========================================
 # 디자인 설정
 # ==========================================
@@ -475,6 +495,74 @@ def show_meeting_calendar():
 
 
 # ==========================================
+# 일정 달력 함수
+# ==========================================
+
+def show_schedule_calendar():
+    """월별 일정 달력과 날짜 선택 기능을 표시합니다."""
+    year = st.session_state.schedule_year
+    month = st.session_state.schedule_month
+
+    prev_col, title_col, next_col = st.columns([1, 3, 1])
+
+    with prev_col:
+        if st.button("◀ 이전 달", key="schedule_prev_month"):
+            if month == 1:
+                st.session_state.schedule_year -= 1
+                st.session_state.schedule_month = 12
+            else:
+                st.session_state.schedule_month -= 1
+            st.rerun()
+
+    with title_col:
+        st.markdown(
+            f"<h3 style='text-align:center'>{year}년 {month}월</h3>",
+            unsafe_allow_html=True
+        )
+
+    with next_col:
+        if st.button("다음 달 ▶", key="schedule_next_month"):
+            if month == 12:
+                st.session_state.schedule_year += 1
+                st.session_state.schedule_month = 1
+            else:
+                st.session_state.schedule_month += 1
+            st.rerun()
+
+    weekdays = ["월", "화", "수", "목", "금", "토", "일"]
+    weekday_cols = st.columns(7)
+    for col, weekday in zip(weekday_cols, weekdays):
+        col.markdown(f"**{weekday}**")
+
+    month_matrix = calendar.monthcalendar(year, month)
+    for week in month_matrix:
+        cols = st.columns(7)
+        for col, day_number in zip(cols, week):
+            if day_number == 0:
+                col.write(" ")
+                continue
+
+            current_date = date(year, month, day_number)
+            has_event = any(
+                event["start_date"] <= current_date <= event["end_date"]
+                for event in st.session_state.schedule_events
+            )
+            selected = st.session_state.schedule_selected_date == current_date
+            label = f"● {day_number}" if has_event else str(day_number)
+            if selected:
+                label = f"▣ {label}"
+
+            if col.button(
+                label,
+                key=f"schedule_day_{year}_{month}_{day_number}",
+                use_container_width=True
+            ):
+                st.session_state.schedule_selected_date = current_date
+                st.session_state.schedule_edit_id = None
+                st.rerun()
+
+
+# ==========================================
 # 왼쪽 사이드바
 # ==========================================
 
@@ -621,7 +709,161 @@ if menu == "🏠  홈":
 elif menu == "📅  일정":
 
     st.title("일정")
-    st.write("일정 관리 페이지입니다.")
+    st.caption("회의, 업무 기간, 회사 일정 등을 달력에서 관리할 수 있습니다.")
+
+    show_schedule_calendar()
+
+    selected_date = st.session_state.schedule_selected_date
+    st.divider()
+    st.subheader(f"{selected_date.strftime('%Y년 %m월 %d일')} 일정")
+
+    selected_events = [
+        event for event in st.session_state.schedule_events
+        if event["start_date"] <= selected_date <= event["end_date"]
+    ]
+    selected_events.sort(key=lambda event: (event["start_date"], event["title"]))
+
+    if not selected_events:
+        st.info("선택한 날짜에 등록된 일정이 없습니다.")
+
+    for event in selected_events:
+        with st.container(border=True):
+            info_col, edit_col, delete_col = st.columns([7, 1, 1])
+
+            with info_col:
+                st.markdown(f"**[{event['category']}] {event['title']}**")
+                st.write(
+                    f"기간: {event['start_date'].strftime('%Y.%m.%d')} "
+                    f"~ {event['end_date'].strftime('%Y.%m.%d')}"
+                )
+                if event["place"]:
+                    st.write(f"장소: {event['place']}")
+                if event["memo"]:
+                    st.write(f"내용 및 메모: {event['memo']}")
+
+            with edit_col:
+                if st.button("수정", key=f"schedule_edit_{event['id']}"):
+                    st.session_state.schedule_edit_id = event["id"]
+                    st.rerun()
+
+            with delete_col:
+                if st.button("삭제", key=f"schedule_delete_{event['id']}"):
+                    st.session_state.schedule_events = [
+                        item for item in st.session_state.schedule_events
+                        if item["id"] != event["id"]
+                    ]
+                    st.rerun()
+
+    editing_schedule = next(
+        (
+            event for event in st.session_state.schedule_events
+            if event["id"] == st.session_state.schedule_edit_id
+        ),
+        None
+    )
+
+    st.divider()
+    if editing_schedule:
+        st.subheader("일정 수정")
+    else:
+        st.subheader("일정 등록")
+
+    form_key = (
+        f"schedule_form_edit_{editing_schedule['id']}"
+        if editing_schedule else "schedule_form_new"
+    )
+
+    with st.form(form_key):
+        category_value = st.selectbox(
+            "일정 유형",
+            ["회의", "업무", "회사 일정", "개인 일정", "기타"],
+            index=(
+                ["회의", "업무", "회사 일정", "개인 일정", "기타"].index(
+                    editing_schedule["category"]
+                )
+                if editing_schedule and editing_schedule["category"] in
+                ["회의", "업무", "회사 일정", "개인 일정", "기타"]
+                else 0
+            ),
+            key=f"{form_key}_category"
+        )
+
+        title_value = st.text_input(
+            "일정 제목",
+            value=editing_schedule["title"] if editing_schedule else "",
+            key=f"{form_key}_title"
+        )
+
+        start_date_value = st.date_input(
+            "시작일",
+            value=(
+                editing_schedule["start_date"]
+                if editing_schedule else selected_date
+            ),
+            key=f"{form_key}_start"
+        )
+
+        end_date_value = st.date_input(
+            "마감일",
+            value=(
+                editing_schedule["end_date"]
+                if editing_schedule else selected_date
+            ),
+            key=f"{form_key}_end"
+        )
+
+        place_value = st.text_input(
+            "장소",
+            value=editing_schedule["place"] if editing_schedule else "",
+            key=f"{form_key}_place"
+        )
+
+        memo_value = st.text_area(
+            "내용 및 메모",
+            value=editing_schedule["memo"] if editing_schedule else "",
+            key=f"{form_key}_memo"
+        )
+
+        save_schedule = st.form_submit_button(
+            "수정 완료" if editing_schedule else "일정 등록"
+        )
+
+    if save_schedule:
+        if not title_value.strip():
+            st.warning("일정 제목을 입력해주세요.")
+        elif end_date_value < start_date_value:
+            st.warning("마감일은 시작일보다 빠를 수 없습니다.")
+        else:
+            schedule_data = {
+                "category": category_value,
+                "title": title_value.strip(),
+                "start_date": start_date_value,
+                "end_date": end_date_value,
+                "place": place_value.strip(),
+                "memo": memo_value.strip()
+            }
+
+            if editing_schedule:
+                for event in st.session_state.schedule_events:
+                    if event["id"] == editing_schedule["id"]:
+                        event.update(schedule_data)
+                        break
+                st.session_state.schedule_edit_id = None
+            else:
+                schedule_data["id"] = st.session_state.schedule_counter
+                st.session_state.schedule_counter += 1
+                st.session_state.schedule_events.append(schedule_data)
+
+            st.session_state.schedule_selected_date = start_date_value
+            st.session_state.schedule_year = start_date_value.year
+            st.session_state.schedule_month = start_date_value.month
+            st.success("일정이 저장되었습니다.")
+            st.rerun()
+
+    if editing_schedule:
+        if st.button("수정 취소", key="schedule_edit_cancel"):
+            st.session_state.schedule_edit_id = None
+            st.rerun()
 
 
 # ==========================================
