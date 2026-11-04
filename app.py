@@ -15,7 +15,10 @@ st.set_page_config(
 )
 
 
+# ==========================================
 # 세션 상태 초기화
+# ==========================================
+
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
@@ -32,7 +35,10 @@ if "menu" not in st.session_state:
     st.session_state.menu = "🏠  홈"
 
 
+# ==========================================
 # 디자인 설정
+# ==========================================
+
 st.markdown("""
 <style>
 
@@ -50,11 +56,6 @@ st.markdown("""
     padding-top: 30px;
 }
 
-/* 사이드바 기본 글씨 */
-[data-testid="stSidebar"] * {
-    color: #FFFFFF;
-}
-
 /* 메인 화면 여백 */
 .block-container {
     padding-top: 2rem;
@@ -66,39 +67,48 @@ st.markdown("""
     background-color: transparent;
 }
 
-/* 사이드바 메인 메뉴 버튼 */
+/* 사이드바 버튼 기본 디자인 */
 [data-testid="stSidebar"] .stButton > button {
-    width: 100%;
-    min-height: 42px;
-    border-radius: 9px;
-    border: 1px solid transparent;
-    background-color: rgba(255, 255, 255, 0.07);
+    background-color: transparent;
+    border: none;
+    border-radius: 8px;
     color: #FFFFFF;
     text-align: left;
-    padding: 10px 14px;
-    transition: 0.2s;
+    justify-content: flex-start;
+    padding: 8px 12px;
+    min-height: 40px;
+    font-size: 15px;
+    box-shadow: none;
+    transition: background-color 0.2s;
+}
+
+/* 버튼 내부 글씨 왼쪽 정렬 */
+[data-testid="stSidebar"] .stButton > button > div {
+    justify-content: flex-start;
+    width: 100%;
 }
 
 /* 메인 메뉴 마우스 올렸을 때 */
 [data-testid="stSidebar"] .stButton > button:hover {
-    background-color: rgba(255, 255, 255, 0.16);
+    background-color: rgba(255, 255, 255, 0.12);
     color: #FFFFFF;
-    border-color: rgba(255, 255, 255, 0.2);
+    border: none;
 }
 
-/* 하위 메뉴 버튼 */
+/* 하위 메뉴 기본 디자인 */
 [data-testid="stSidebar"] .st-key-sub_new button,
 [data-testid="stSidebar"] .st-key-sub_recent button {
-    background-color: rgba(255, 255, 255, 0.035);
     color: #B8C5DC;
+    background-color: transparent;
     font-size: 14px;
-    padding-left: 24px;
+    padding-left: 30px;
+    min-height: 36px;
 }
 
 /* 하위 메뉴 마우스 올렸을 때 */
 [data-testid="stSidebar"] .st-key-sub_new button:hover,
 [data-testid="stSidebar"] .st-key-sub_recent button:hover {
-    background-color: rgba(255, 255, 255, 0.13);
+    background-color: rgba(255, 255, 255, 0.10);
     color: #FFFFFF;
 }
 
@@ -126,7 +136,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+# ==========================================
 # 대화 찾기 함수
+# ==========================================
+
 def get_chat(chat_id):
 
     for chat in st.session_state.chat_history:
@@ -137,7 +150,10 @@ def get_chat(chat_id):
     return None
 
 
-# AI에게 메시지 전달하는 함수
+# ==========================================
+# AI 메시지 전송 함수
+# ==========================================
+
 def send_message(chat, user_input):
 
     # 사용자 메시지 저장
@@ -196,7 +212,10 @@ def send_message(chat, user_input):
         st.error(f"답변 생성 중 오류가 발생했습니다: {e}")
 
 
+# ==========================================
 # 대화 내용 출력 함수
+# ==========================================
+
 def show_messages(chat):
 
     for message in chat["messages"]:
@@ -205,9 +224,9 @@ def show_messages(chat):
             st.write(message["content"])
 
 
-# --------------------------------------------------
+# ==========================================
 # 왼쪽 사이드바
-# --------------------------------------------------
+# ==========================================
 
 with st.sidebar:
 
@@ -241,6 +260,7 @@ with st.sidebar:
 
             # 다른 메뉴로 이동하면 선택된 대화 초기화
             if item != "💬  AI 챗봇":
+
                 st.session_state.chat_page = "새로운 대화"
                 st.session_state.selected_chat_id = None
 
@@ -250,11 +270,9 @@ with st.sidebar:
     if st.session_state.menu == "💬  AI 챗봇":
 
         st.markdown(
-            "<div style='height:8px'></div>",
+            "<div style='height:5px'></div>",
             unsafe_allow_html=True
         )
-
-        st.markdown("**AI 챗봇**")
 
         # 새로운 대화 버튼
         if st.button(
@@ -285,18 +303,18 @@ with st.sidebar:
 menu = st.session_state.menu
 
 
-# --------------------------------------------------
+# ==========================================
 # 홈 화면
-# --------------------------------------------------
+# ==========================================
 
 if menu == "🏠  홈":
 
     st.title("메인 화면")
 
 
-# --------------------------------------------------
+# ==========================================
 # 일정 화면
-# --------------------------------------------------
+# ==========================================
 
 elif menu == "📅  일정":
 
@@ -304,9 +322,9 @@ elif menu == "📅  일정":
     st.write("일정 관리 페이지입니다.")
 
 
-# --------------------------------------------------
+# ==========================================
 # 회의 화면
-# --------------------------------------------------
+# ==========================================
 
 elif menu == "📋  회의":
 
@@ -314,9 +332,9 @@ elif menu == "📋  회의":
     st.write("회의 관리 페이지입니다.")
 
 
-# --------------------------------------------------
+# ==========================================
 # 이메일 화면
-# --------------------------------------------------
+# ==========================================
 
 elif menu == "✉️  이메일":
 
@@ -324,9 +342,9 @@ elif menu == "✉️  이메일":
     st.write("이메일 관리 페이지입니다.")
 
 
-# --------------------------------------------------
+# ==========================================
 # 음성 비서 화면
-# --------------------------------------------------
+# ==========================================
 
 elif menu == "🎙️  음성 비서":
 
@@ -392,15 +410,15 @@ elif menu == "🎙️  음성 비서":
             st.write(answer)
 
 
-# --------------------------------------------------
+# ==========================================
 # AI 챗봇 화면
-# --------------------------------------------------
+# ==========================================
 
 elif menu == "💬  AI 챗봇":
 
-    # ==============================================
+    # --------------------------------------
     # 새로운 대화
-    # ==============================================
+    # --------------------------------------
 
     if st.session_state.chat_page == "새로운 대화":
 
@@ -457,14 +475,16 @@ elif menu == "💬  AI 챗봇":
             st.rerun()
 
 
-    # ==============================================
+    # --------------------------------------
     # 최근 대화
-    # ==============================================
+    # --------------------------------------
 
     elif st.session_state.chat_page == "최근 대화":
 
         st.title("🕘 최근 대화")
-        st.caption("이전에 나눈 대화를 확인하고 이어서 대화할 수 있습니다.")
+        st.caption(
+            "이전에 나눈 대화를 확인하고 이어서 대화할 수 있습니다."
+        )
 
         # 대화가 없는 경우
         if not st.session_state.chat_history:
