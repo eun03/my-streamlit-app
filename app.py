@@ -34,6 +34,9 @@ if "chat_page" not in st.session_state:
 if "menu" not in st.session_state:
     st.session_state.menu = "🏠  홈"
 
+if "edit_chat_id" not in st.session_state:
+    st.session_state.edit_chat_id = None
+
 
 # ==========================================
 # 디자인 설정
@@ -247,7 +250,7 @@ with st.sidebar:
         "💬  AI 챗봇"
     ]
 
-    # 메인 메뉴 버튼 생성
+    # 메인 메뉴 버튼
     for i, item in enumerate(menu_list):
 
         if st.button(
@@ -258,15 +261,14 @@ with st.sidebar:
 
             st.session_state.menu = item
 
-            # 다른 메뉴로 이동하면 선택된 대화 초기화
             if item != "💬  AI 챗봇":
-
                 st.session_state.chat_page = "새로운 대화"
                 st.session_state.selected_chat_id = None
+                st.session_state.edit_chat_id = None
 
             st.rerun()
 
-    # AI 챗봇 선택 시 하위 메뉴 표시
+    # AI 챗봇 하위 메뉴
     if st.session_state.menu == "💬  AI 챗봇":
 
         st.markdown(
@@ -274,7 +276,7 @@ with st.sidebar:
             unsafe_allow_html=True
         )
 
-        # 새로운 대화 버튼
+        # 새로운 대화
         if st.button(
             "✏️  새로운 대화",
             key="sub_new",
@@ -283,10 +285,11 @@ with st.sidebar:
 
             st.session_state.chat_page = "새로운 대화"
             st.session_state.selected_chat_id = None
+            st.session_state.edit_chat_id = None
 
             st.rerun()
 
-        # 최근 대화 버튼
+        # 최근 대화
         if st.button(
             "🕘  최근 대화",
             key="sub_recent",
@@ -295,6 +298,7 @@ with st.sidebar:
 
             st.session_state.chat_page = "최근 대화"
             st.session_state.selected_chat_id = None
+            st.session_state.edit_chat_id = None
 
             st.rerun()
 
@@ -441,7 +445,7 @@ elif menu == "💬  AI 챗봇":
                 "안녕하세요! 에이블입니다. 무엇을 도와드릴까요?"
             )
 
-        # 화면 아래쪽 채팅 입력창
+        # 채팅 입력창
         user_input = st.chat_input(
             "메시지를 입력하세요.",
             key="new_chat_input"
@@ -469,7 +473,7 @@ elif menu == "💬  AI 챗봇":
                     selected_chat["id"]
                 )
 
-            # AI에게 메시지 전달
+            # AI 메시지 전송
             send_message(selected_chat, user_input)
 
             st.rerun()
@@ -504,8 +508,9 @@ elif menu == "💬  AI 챗봇":
             # 최근 대화 목록 출력
             for chat in st.session_state.chat_history:
 
-                col1, col2 = st.columns([5, 1])
+                col1, col2 = st.columns([8, 1])
 
+                # 대화 제목 버튼
                 with col1:
 
                     if st.button(
@@ -518,13 +523,57 @@ elif menu == "💬  AI 챗봇":
                             chat["id"]
                         )
 
+                        st.session_state.edit_chat_id = None
+
                         st.rerun()
 
+                # 점 세 개 메뉴
                 with col2:
 
-                    st.caption(
-                        chat["updated_at"].strftime("%m/%d")
-                    )
+                    with st.popover("⋯"):
+
+                        # 제목 수정 버튼
+                        if st.button(
+                            "✏️ 제목 수정",
+                            key=f"edit_{chat['id']}",
+                            use_container_width=True
+                        ):
+
+                            st.session_state.selected_chat_id = (
+                                chat["id"]
+                            )
+
+                            st.session_state.edit_chat_id = (
+                                chat["id"]
+                            )
+
+                            st.rerun()
+
+                        # 대화 삭제 버튼
+                        if st.button(
+                            "🗑️ 삭제",
+                            key=f"delete_{chat['id']}",
+                            use_container_width=True
+                        ):
+
+                            # 선택한 대화 삭제
+                            st.session_state.chat_history = [
+                                item for item in st.session_state.chat_history
+                                if item["id"] != chat["id"]
+                            ]
+
+                            # 삭제한 대화가 현재 선택된 대화라면 초기화
+                            if st.session_state.selected_chat_id == chat["id"]:
+                                st.session_state.selected_chat_id = None
+
+                            if st.session_state.edit_chat_id == chat["id"]:
+                                st.session_state.edit_chat_id = None
+
+                            st.rerun()
+
+                st.caption(
+                    chat["updated_at"].strftime("%m/%d")
+                )
 
             # 선택한 대화 가져오기
             selected_chat = get_chat(
@@ -537,33 +586,51 @@ elif menu == "💬  AI 챗봇":
 
                 st.subheader("대화 내용")
 
-                # 대화 제목 수정
-                with st.form("rename_form"):
+                # 제목 수정 화면
+                if st.session_state.edit_chat_id == selected_chat["id"]:
 
-                    new_title = st.text_input(
-                        "대화 제목 수정",
-                        value=selected_chat["title"]
-                    )
+                    with st.form("rename_form"):
 
-                    rename_submit = st.form_submit_button(
-                        "제목 저장"
-                    )
+                        new_title = st.text_input(
+                            "새로운 대화 제목",
+                            value=selected_chat["title"]
+                        )
 
-                if rename_submit:
+                        col1, col2 = st.columns(2)
 
-                    if new_title.strip():
+                        with col1:
+                            rename_submit = st.form_submit_button(
+                                "저장"
+                            )
 
-                        selected_chat["title"] = new_title.strip()
+                        with col2:
+                            cancel_submit = st.form_submit_button(
+                                "취소"
+                            )
 
-                        st.success("대화 제목이 수정되었습니다.")
+                    if rename_submit:
+
+                        if new_title.strip():
+
+                            selected_chat["title"] = new_title.strip()
+
+                            st.session_state.edit_chat_id = None
+
+                            st.success("대화 제목이 수정되었습니다.")
+
+                            st.rerun()
+
+                        else:
+
+                            st.warning("제목을 입력해주세요.")
+
+                    if cancel_submit:
+
+                        st.session_state.edit_chat_id = None
 
                         st.rerun()
 
-                    else:
-
-                        st.warning("제목을 입력해주세요.")
-
-                # 이전 대화 출력
+                # 이전 대화 내용 출력
                 show_messages(selected_chat)
 
                 # 기존 대화 이어서 질문하기
