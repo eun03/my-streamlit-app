@@ -517,9 +517,7 @@ elif menu == "💬  AI 챗봇":
 
                     if st.session_state.edit_chat_id == chat["id"]:
 
-                        title_col, save_col, cancel_col = st.columns(
-                            [6, 1, 1]
-                        )
+                        title_col, save_col = st.columns([7, 1])
 
                         with title_col:
 
@@ -548,17 +546,6 @@ elif menu == "💬  AI 챗봇":
                                 else:
 
                                     st.warning("제목을 입력해주세요.")
-
-                        with cancel_col:
-
-                            if st.button(
-                                "취소",
-                                key=f"cancel_{chat['id']}"
-                            ):
-
-                                st.session_state.edit_chat_id = None
-
-                                st.rerun()
 
                     else:
 
