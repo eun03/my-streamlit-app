@@ -399,6 +399,50 @@ st.markdown("""
     font-size: 14px;
 }
 
+
+/* 왼쪽 사이드바 하단 계정 카드 */
+[data-testid="stSidebar"] .sidebar-account-card {
+    position: fixed;
+    left: 14px;
+    bottom: 16px;
+    width: 270px;
+    max-width: calc(100vw - 28px);
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 10px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    z-index: 999;
+}
+[data-testid="stSidebar"] .sidebar-account-avatar {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 11px;
+    background: #7770F5;
+    color: #FFFFFF;
+    font-size: 18px;
+    font-weight: 800;
+}
+[data-testid="stSidebar"] .sidebar-account-name {
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.35;
+}
+[data-testid="stSidebar"] .sidebar-account-role {
+    color: #AEBBD2;
+    font-size: 11px;
+    margin-top: 3px;
+    line-height: 1.3;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -865,6 +909,21 @@ with st.sidebar:
                     st.session_state.edit_chat_id = None
 
                     st.rerun()
+
+
+    # 왼쪽 하단 계정 정보
+    st.markdown(
+        """
+        <div class="sidebar-account-card">
+            <div class="sidebar-account-avatar">김</div>
+            <div>
+                <div class="sidebar-account-name">김대리</div>
+                <div class="sidebar-account-role">마케팅 · WORKSPACE</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 
 # 현재 선택한 메뉴
