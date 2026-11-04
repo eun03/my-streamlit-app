@@ -3,6 +3,8 @@ import os, base64, json, requests
 import streamlit as st
 from openai import OpenAI
 from datetime import datetime
+import calendar
+from datetime import date
 
 # OpenAI 클라이언트 생성
 client = OpenAI()
@@ -48,6 +50,35 @@ if "voice_messages" not in st.session_state:
 # 실시간 음성 대화 기록
 if "realtime_messages" not in st.session_state:
     st.session_state.realtime_messages = []
+
+
+# 회의 기능 세션 상태
+if "meeting_page" not in st.session_state:
+    st.session_state.meeting_page = "회의 관리"
+
+if "meeting_events" not in st.session_state:
+    st.session_state.meeting_events = []
+
+if "meeting_counter" not in st.session_state:
+    st.session_state.meeting_counter = 0
+
+if "meeting_selected_date" not in st.session_state:
+    st.session_state.meeting_selected_date = date.today()
+
+if "meeting_year" not in st.session_state:
+    st.session_state.meeting_year = date.today().year
+
+if "meeting_month" not in st.session_state:
+    st.session_state.meeting_month = date.today().month
+
+if "meeting_edit_id" not in st.session_state:
+    st.session_state.meeting_edit_id = None
+
+if "meeting_summary_result" not in st.session_state:
+    st.session_state.meeting_summary_result = ""
+
+if "meeting_task_result" not in st.session_state:
+    st.session_state.meeting_task_result = ""
 
 
 # ==========================================
@@ -137,7 +168,10 @@ st.markdown("""
 [data-testid="stSidebar"] .st-key-sub_new button,
 [data-testid="stSidebar"] .st-key-sub_recent button,
 [data-testid="stSidebar"] .st-key-voice_command button,
-[data-testid="stSidebar"] .st-key-voice_realtime button {
+[data-testid="stSidebar"] .st-key-voice_realtime button,
+[data-testid="stSidebar"] .st-key-meeting_manage button,
+[data-testid="stSidebar"] .st-key-meeting_summary button,
+[data-testid="stSidebar"] .st-key-meeting_tasks button {
     color: #B8C5DC !important;
     background-color: transparent;
     font-size: 14px;
@@ -149,7 +183,10 @@ st.markdown("""
 [data-testid="stSidebar"] .st-key-sub_new button p,
 [data-testid="stSidebar"] .st-key-sub_recent button p,
 [data-testid="stSidebar"] .st-key-voice_command button p,
-[data-testid="stSidebar"] .st-key-voice_realtime button p {
+[data-testid="stSidebar"] .st-key-voice_realtime button p,
+[data-testid="stSidebar"] .st-key-meeting_manage button p,
+[data-testid="stSidebar"] .st-key-meeting_summary button p,
+[data-testid="stSidebar"] .st-key-meeting_tasks button p {
     color: #B8C5DC !important;
 }
 
@@ -157,7 +194,10 @@ st.markdown("""
 [data-testid="stSidebar"] .st-key-sub_new button:hover,
 [data-testid="stSidebar"] .st-key-sub_recent button:hover,
 [data-testid="stSidebar"] .st-key-voice_command button:hover,
-[data-testid="stSidebar"] .st-key-voice_realtime button:hover {
+[data-testid="stSidebar"] .st-key-voice_realtime button:hover,
+[data-testid="stSidebar"] .st-key-meeting_manage button:hover,
+[data-testid="stSidebar"] .st-key-meeting_summary button:hover,
+[data-testid="stSidebar"] .st-key-meeting_tasks button:hover {
     background-color: rgba(255, 255, 255, 0.10);
     color: #FFFFFF !important;
 }
@@ -327,6 +367,114 @@ def show_messages(chat):
 
 
 # ==========================================
+# 회의 기능 함수
+# ==========================================
+
+def read_meeting_txt(uploaded_file):
+    """TXT 회의록 파일을 읽습니다."""
+    file_bytes = uploaded_file.getvalue()
+    for encoding in ["utf-8", "utf-8-sig", "cp949", "euc-kr"]:
+        try:
+            return file_bytes.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    raise ValueError("TXT 파일 인코딩을 읽을 수 없습니다.")
+
+
+def get_meeting_ai_result(meeting_text, task_mode=False):
+    """회의록 요약 또는 김 대리 담당 업무를 AI로 추출합니다."""
+    if task_mode:
+        instruction = """
+회의록을 분석하여 '김 대리'에게 배정된 업무만 추출하세요.
+각 업무별로 업무 내용, 담당자, 마감일, 주의사항을 정리하세요.
+김 대리에게 배정된 업무가 명확하지 않으면 임의로 추측하지 말고
+'회의록에서 김 대리 담당 업무를 확인할 수 없습니다.'라고 답하세요.
+마감일이나 주의사항이 명시되지 않았다면 '명시되지 않음'이라고 표시하세요.
+표 또는 항목별 목록으로 읽기 쉽게 작성하세요.
+"""
+    else:
+        instruction = """
+회의록의 주요 내용을 요약하세요.
+회의 목적, 주요 논의 내용, 결정 사항, 후속 조치 순서로 정리하세요.
+회의록에 없는 내용은 추측하지 마세요.
+"""
+
+    response = client.responses.create(
+        model="gpt-4o-mini",
+        input=[
+            {"role": "system", "content": instruction},
+            {"role": "user", "content": meeting_text}
+        ]
+    )
+    return response.output_text
+
+
+def show_meeting_calendar():
+    """월별 회의 달력과 날짜 선택 기능을 표시합니다."""
+    year = st.session_state.meeting_year
+    month = st.session_state.meeting_month
+
+    prev_col, title_col, next_col = st.columns([1, 3, 1])
+    with prev_col:
+        if st.button("◀ 이전 달", key="meeting_prev_month"):
+            if month == 1:
+                st.session_state.meeting_year -= 1
+                st.session_state.meeting_month = 12
+            else:
+                st.session_state.meeting_month -= 1
+            st.rerun()
+    with title_col:
+        st.markdown(
+            f"<h3 style='text-align:center'>{year}년 {month}월</h3>",
+            unsafe_allow_html=True
+        )
+    with next_col:
+        if st.button("다음 달 ▶", key="meeting_next_month"):
+            if month == 12:
+                st.session_state.meeting_year += 1
+                st.session_state.meeting_month = 1
+            else:
+                st.session_state.meeting_month += 1
+            st.rerun()
+
+    weekdays = ["월", "화", "수", "목", "금", "토", "일"]
+    weekday_cols = st.columns(7)
+    for col, weekday in zip(weekday_cols, weekdays):
+        col.markdown(f"**{weekday}**")
+
+    month_matrix = calendar.monthcalendar(year, month)
+    for week_index, week in enumerate(month_matrix):
+        cols = st.columns(7)
+        for col, day_number in zip(cols, week):
+            if day_number == 0:
+                col.write(" ")
+                continue
+
+            selected = (
+                st.session_state.meeting_selected_date
+                == date(year, month, day_number)
+            )
+            event_count = sum(
+                1 for event in st.session_state.meeting_events
+                if event["date"] == date(year, month, day_number)
+            )
+            label = f"● {day_number}" if event_count else str(day_number)
+            if selected:
+                label = f"▣ {label}"
+
+            if col.button(
+                label,
+                key=f"meeting_day_{year}_{month}_{day_number}",
+                use_container_width=True
+            ):
+                st.session_state.meeting_selected_date = date(
+                    year, month, day_number
+                )
+                st.session_state.meeting_edit_id = None
+                st.rerun()
+
+
+# ==========================================
 # 왼쪽 사이드바
 # ==========================================
 
@@ -369,6 +517,36 @@ with st.sidebar:
                 st.session_state.voice_page = "음성 명령"
 
             st.rerun()
+
+        # 회의 하위 메뉴
+        if item == "📋  회의":
+
+            if st.session_state.menu == "📋  회의":
+
+                if st.button(
+                    "📅  회의 관리",
+                    key="meeting_manage",
+                    use_container_width=True
+                ):
+                    st.session_state.meeting_page = "회의 관리"
+                    st.session_state.meeting_edit_id = None
+                    st.rerun()
+
+                if st.button(
+                    "📝  회의록 요약",
+                    key="meeting_summary",
+                    use_container_width=True
+                ):
+                    st.session_state.meeting_page = "회의록 요약"
+                    st.rerun()
+
+                if st.button(
+                    "📌  업무 추출",
+                    key="meeting_tasks",
+                    use_container_width=True
+                ):
+                    st.session_state.meeting_page = "업무 추출"
+                    st.rerun()
 
         # 음성 비서 하위 메뉴
         if item == "🎙️  음성 비서":
@@ -453,7 +631,241 @@ elif menu == "📅  일정":
 elif menu == "📋  회의":
 
     st.title("회의")
-    st.write("회의 관리 페이지입니다.")
+
+    # --------------------------------------
+    # 회의 관리
+    # --------------------------------------
+    if st.session_state.meeting_page == "회의 관리":
+
+        st.subheader("📅 회의 관리")
+        show_meeting_calendar()
+
+        selected_date = st.session_state.meeting_selected_date
+        st.divider()
+        st.subheader(f"{selected_date.strftime('%Y년 %m월 %d일')} 회의 일정")
+
+        selected_events = [
+            event for event in st.session_state.meeting_events
+            if event["date"] == selected_date
+        ]
+        selected_events.sort(key=lambda event: event["time"])
+
+        if not selected_events:
+            st.info("선택한 날짜에 등록된 회의가 없습니다.")
+
+        for event in selected_events:
+            with st.container(border=True):
+                info_col, edit_col, delete_col = st.columns([7, 1, 1])
+                with info_col:
+                    st.markdown(f"**{event['time']} · {event['title']}**")
+                    if event["place"]:
+                        st.write(f"장소: {event['place']}")
+                    if event["attendees"]:
+                        st.write(f"참석자: {event['attendees']}")
+                    if event["memo"]:
+                        st.write(f"메모: {event['memo']}")
+                with edit_col:
+                    if st.button("수정", key=f"meeting_edit_{event['id']}"):
+                        st.session_state.meeting_edit_id = event["id"]
+                        st.rerun()
+                with delete_col:
+                    if st.button("삭제", key=f"meeting_delete_{event['id']}"):
+                        st.session_state.meeting_events = [
+                            item for item in st.session_state.meeting_events
+                            if item["id"] != event["id"]
+                        ]
+                        st.rerun()
+
+        editing_event = next(
+            (
+                event for event in st.session_state.meeting_events
+                if event["id"] == st.session_state.meeting_edit_id
+            ),
+            None
+        )
+
+        st.divider()
+        if editing_event:
+            st.subheader("회의 일정 수정")
+        else:
+            st.subheader("회의 일정 등록")
+
+        with st.form("meeting_event_form"):
+            title_value = st.text_input(
+                "회의 제목",
+                value=editing_event["title"] if editing_event else ""
+            )
+            date_value = st.date_input(
+                "회의 날짜",
+                value=editing_event["date"] if editing_event else selected_date
+            )
+            time_value = st.time_input(
+                "회의 시간",
+                value=(
+                    datetime.strptime(editing_event["time"], "%H:%M").time()
+                    if editing_event else datetime.now().replace(
+                        minute=0, second=0, microsecond=0
+                    ).time()
+                )
+            )
+            place_value = st.text_input(
+                "회의 장소",
+                value=editing_event["place"] if editing_event else ""
+            )
+            attendees_value = st.text_input(
+                "참석자",
+                value=editing_event["attendees"] if editing_event else ""
+            )
+            memo_value = st.text_area(
+                "메모 및 안건",
+                value=editing_event["memo"] if editing_event else ""
+            )
+            save_meeting = st.form_submit_button(
+                "수정 완료" if editing_event else "회의 등록"
+            )
+
+        if save_meeting:
+            if not title_value.strip():
+                st.warning("회의 제목을 입력해주세요.")
+            else:
+                event_data = {
+                    "title": title_value.strip(),
+                    "date": date_value,
+                    "time": time_value.strftime("%H:%M"),
+                    "place": place_value.strip(),
+                    "attendees": attendees_value.strip(),
+                    "memo": memo_value.strip()
+                }
+
+                if editing_event:
+                    for event in st.session_state.meeting_events:
+                        if event["id"] == editing_event["id"]:
+                            event.update(event_data)
+                            break
+                    st.session_state.meeting_edit_id = None
+                else:
+                    event_data["id"] = st.session_state.meeting_counter
+                    st.session_state.meeting_counter += 1
+                    st.session_state.meeting_events.append(event_data)
+
+                st.session_state.meeting_selected_date = date_value
+                st.session_state.meeting_year = date_value.year
+                st.session_state.meeting_month = date_value.month
+                st.success("회의 일정이 저장되었습니다.")
+                st.rerun()
+
+        if editing_event:
+            if st.button("수정 취소", key="meeting_edit_cancel"):
+                st.session_state.meeting_edit_id = None
+                st.rerun()
+
+    # --------------------------------------
+    # 회의록 요약
+    # --------------------------------------
+    elif st.session_state.meeting_page == "회의록 요약":
+
+        st.subheader("📝 회의록 요약")
+        st.write("TXT 형식의 회의록을 업로드하면 AI가 주요 내용을 요약합니다.")
+
+        meeting_file = st.file_uploader(
+            "회의록 TXT 파일 업로드",
+            type=["txt"],
+            key="meeting_summary_file"
+        )
+
+        text_col, voice_col = st.columns(2)
+
+        with text_col:
+            if st.button("텍스트 답변", key="meeting_summary_text"):
+                if meeting_file is None:
+                    st.warning("회의록 TXT 파일을 업로드해주세요.")
+                else:
+                    try:
+                        meeting_text = read_meeting_txt(meeting_file)
+                        with st.spinner("회의록을 요약하고 있습니다..."):
+                            st.session_state.meeting_summary_result = (
+                                get_meeting_ai_result(meeting_text)
+                            )
+                    except Exception as e:
+                        st.error(f"회의록 요약 중 오류가 발생했습니다: {e}")
+
+        with voice_col:
+            if st.button("음성 답변", key="meeting_summary_voice"):
+                if meeting_file is None:
+                    st.warning("회의록 TXT 파일을 업로드해주세요.")
+                else:
+                    try:
+                        meeting_text = read_meeting_txt(meeting_file)
+                        with st.spinner("회의록을 요약하고 있습니다..."):
+                            st.session_state.meeting_summary_result = (
+                                get_meeting_ai_result(meeting_text)
+                            )
+                        with st.spinner("요약 내용을 음성으로 변환하고 있습니다..."):
+                            audio_result = text_to_speech(
+                                st.session_state.meeting_summary_result
+                            )
+                        st.audio(audio_result, format="audio/mp3")
+                    except Exception as e:
+                        st.error(f"음성 답변 생성 중 오류가 발생했습니다: {e}")
+
+        if st.session_state.meeting_summary_result:
+            st.markdown("### AI 회의록 요약")
+            st.write(st.session_state.meeting_summary_result)
+
+    # --------------------------------------
+    # 업무 추출
+    # --------------------------------------
+    elif st.session_state.meeting_page == "업무 추출":
+
+        st.subheader("📌 업무 추출")
+        st.write(
+            "회의록에서 김 대리에게 배정된 업무, 마감일 및 주의사항을 추출합니다."
+        )
+
+        task_file = st.file_uploader(
+            "회의록 TXT 파일 업로드",
+            type=["txt"],
+            key="meeting_task_file"
+        )
+
+        text_col, voice_col = st.columns(2)
+
+        with text_col:
+            if st.button("텍스트 답변", key="meeting_task_text"):
+                if task_file is None:
+                    st.warning("회의록 TXT 파일을 업로드해주세요.")
+                else:
+                    try:
+                        meeting_text = read_meeting_txt(task_file)
+                        with st.spinner("김 대리의 담당 업무를 추출하고 있습니다..."):
+                            st.session_state.meeting_task_result = (
+                                get_meeting_ai_result(meeting_text, task_mode=True)
+                            )
+                    except Exception as e:
+                        st.error(f"업무 추출 중 오류가 발생했습니다: {e}")
+
+        with voice_col:
+            if st.button("음성 답변", key="meeting_task_voice"):
+                if task_file is None:
+                    st.warning("회의록 TXT 파일을 업로드해주세요.")
+                else:
+                    try:
+                        meeting_text = read_meeting_txt(task_file)
+                        with st.spinner("김 대리의 담당 업무를 추출하고 있습니다..."):
+                            st.session_state.meeting_task_result = (
+                                get_meeting_ai_result(meeting_text, task_mode=True)
+                            )
+                        with st.spinner("업무 추출 결과를 음성으로 변환하고 있습니다..."):
+                            audio_result = text_to_speech(
+                                st.session_state.meeting_task_result
+                            )
+                        st.audio(audio_result, format="audio/mp3")
+                    except Exception as e:
+                        st.error(f"음성 답변 생성 중 오류가 발생했습니다: {e}")
+
+        if st.session_state.meeting_task_result:
+            st.markdown("### 김 대리 담당 업무")
+            st.write(st.session_state.meeting_task_result)
 
 
 # ==========================================
