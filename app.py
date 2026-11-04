@@ -50,13 +50,30 @@ st.markdown("""
     background-color: #F3F6FD;
 }
 
-/* 왼쪽 사이드바 */
+/* 왼쪽 사이드바 배경 */
 [data-testid="stSidebar"] {
     background-color: #192D52;
 }
 
 [data-testid="stSidebar"] > div:first-child {
     padding-top: 30px;
+}
+
+/* 사이드바 글자 전체 흰색 */
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3,
+[data-testid="stSidebar"] h4,
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] span,
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] div[data-testid="stMarkdownContainer"] {
+    color: #FFFFFF !important;
+}
+
+/* 사이드바 구분선 */
+[data-testid="stSidebar"] hr {
+    border-color: rgba(255, 255, 255, 0.15);
 }
 
 /* 메인 화면 여백 */
@@ -75,7 +92,7 @@ st.markdown("""
     background-color: transparent;
     border: none;
     border-radius: 8px;
-    color: #FFFFFF;
+    color: #FFFFFF !important;
     text-align: left;
     justify-content: flex-start;
     padding: 8px 12px;
@@ -91,6 +108,12 @@ st.markdown("""
     width: 100%;
 }
 
+/* 버튼 내부 글자 흰색 */
+[data-testid="stSidebar"] .stButton > button p,
+[data-testid="stSidebar"] .stButton > button span {
+    color: #FFFFFF !important;
+}
+
 /* 메인 메뉴 마우스 올렸을 때 */
 [data-testid="stSidebar"] .stButton > button:hover {
     background-color: rgba(255, 255, 255, 0.12);
@@ -101,18 +124,24 @@ st.markdown("""
 /* 하위 메뉴 기본 디자인 */
 [data-testid="stSidebar"] .st-key-sub_new button,
 [data-testid="stSidebar"] .st-key-sub_recent button {
-    color: #B8C5DC;
+    color: #B8C5DC !important;
     background-color: transparent;
     font-size: 14px;
     padding-left: 30px;
     min-height: 36px;
 }
 
+/* 하위 메뉴 글자 색상 */
+[data-testid="stSidebar"] .st-key-sub_new button p,
+[data-testid="stSidebar"] .st-key-sub_recent button p {
+    color: #B8C5DC !important;
+}
+
 /* 하위 메뉴 마우스 올렸을 때 */
 [data-testid="stSidebar"] .st-key-sub_new button:hover,
 [data-testid="stSidebar"] .st-key-sub_recent button:hover {
     background-color: rgba(255, 255, 255, 0.10);
-    color: #FFFFFF;
+    color: #FFFFFF !important;
 }
 
 /* 메인 화면 버튼 */
