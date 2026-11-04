@@ -112,6 +112,20 @@ if "home_task_counter" not in st.session_state:
     st.session_state.home_task_counter = 3
 
 
+# 이메일 기능 세션 상태
+if "email_page" not in st.session_state:
+    st.session_state.email_page = "이메일 작성"
+
+if "email_generated_subject" not in st.session_state:
+    st.session_state.email_generated_subject = ""
+
+if "email_generated_body" not in st.session_state:
+    st.session_state.email_generated_body = ""
+
+if "email_analysis_result" not in st.session_state:
+    st.session_state.email_analysis_result = ""
+
+
 # ==========================================
 # 디자인 설정
 # ==========================================
@@ -202,7 +216,9 @@ st.markdown("""
 [data-testid="stSidebar"] .st-key-voice_realtime button,
 [data-testid="stSidebar"] .st-key-meeting_manage button,
 [data-testid="stSidebar"] .st-key-meeting_summary button,
-[data-testid="stSidebar"] .st-key-meeting_tasks button {
+[data-testid="stSidebar"] .st-key-meeting_tasks button,
+[data-testid="stSidebar"] .st-key-email_write button,
+[data-testid="stSidebar"] .st-key-email_manage button {
     color: #B8C5DC !important;
     background-color: transparent;
     font-size: 14px;
@@ -217,7 +233,9 @@ st.markdown("""
 [data-testid="stSidebar"] .st-key-voice_realtime button p,
 [data-testid="stSidebar"] .st-key-meeting_manage button p,
 [data-testid="stSidebar"] .st-key-meeting_summary button p,
-[data-testid="stSidebar"] .st-key-meeting_tasks button p {
+[data-testid="stSidebar"] .st-key-meeting_tasks button p,
+[data-testid="stSidebar"] .st-key-email_write button p,
+[data-testid="stSidebar"] .st-key-email_manage button p {
     color: #B8C5DC !important;
 }
 
@@ -228,7 +246,9 @@ st.markdown("""
 [data-testid="stSidebar"] .st-key-voice_realtime button:hover,
 [data-testid="stSidebar"] .st-key-meeting_manage button:hover,
 [data-testid="stSidebar"] .st-key-meeting_summary button:hover,
-[data-testid="stSidebar"] .st-key-meeting_tasks button:hover {
+[data-testid="stSidebar"] .st-key-meeting_tasks button:hover,
+[data-testid="stSidebar"] .st-key-email_write button:hover,
+[data-testid="stSidebar"] .st-key-email_manage button:hover {
     background-color: rgba(255, 255, 255, 0.10);
     color: #FFFFFF !important;
 }
@@ -771,6 +791,27 @@ with st.sidebar:
                     use_container_width=True
                 ):
                     st.session_state.meeting_page = "업무 추출"
+                    st.rerun()
+
+        # 이메일 하위 메뉴
+        if item == "✉️  이메일":
+
+            if st.session_state.menu == "✉️  이메일":
+
+                if st.button(
+                    "✍️  이메일 작성",
+                    key="email_write",
+                    use_container_width=True
+                ):
+                    st.session_state.email_page = "이메일 작성"
+                    st.rerun()
+
+                if st.button(
+                    "📂  이메일 관리",
+                    key="email_manage",
+                    use_container_width=True
+                ):
+                    st.session_state.email_page = "이메일 관리"
                     st.rerun()
 
         # 음성 비서 하위 메뉴
@@ -1382,7 +1423,190 @@ elif menu == "📋  회의":
 elif menu == "✉️  이메일":
 
     st.title("이메일")
-    st.write("이메일 관리 페이지입니다.")
+
+    # --------------------------------------
+    # 이메일 작성
+    # --------------------------------------
+    if st.session_state.email_page == "이메일 작성":
+
+        st.subheader("✍️ 이메일 작성")
+        st.caption("AI에게 작성을 요청하거나 직접 이메일을 작성할 수 있습니다.")
+
+        write_tab, manual_tab = st.tabs(["AI 자동 작성", "직접 작성"])
+
+        with write_tab:
+            st.markdown("#### AI 이메일 자동 작성")
+            email_request = st.text_area(
+                "어떤 이메일을 작성할까요?",
+                placeholder="예: 다음 주 화요일 회의 참석이 어렵다는 내용을 정중하게 전달하는 이메일을 작성해줘.",
+                height=130,
+                key="email_ai_request"
+            )
+
+            if st.button("AI 이메일 작성", key="email_ai_generate"):
+                if not email_request.strip():
+                    st.warning("이메일 작성 요청을 입력해주세요.")
+                else:
+                    try:
+                        with st.spinner("이메일 제목과 본문을 작성하고 있습니다..."):
+                            response = client.responses.create(
+                                model="gpt-4o-mini",
+                                input=[
+                                    {
+                                        "role": "system",
+                                        "content": """
+당신은 직장 업무용 이메일 작성을 돕는 AI 비서입니다.
+사용자의 요청에 맞춰 자연스럽고 정중한 한국어 업무 이메일을 작성하세요.
+반드시 아래 형식으로 작성하세요.
+
+제목: 이메일 제목
+
+본문:
+이메일 본문
+
+수신자나 날짜 등 사용자가 제공하지 않은 정보는 임의로 만들지 말고
+필요한 경우 [수신자], [날짜]처럼 표시하세요.
+"""
+                                    },
+                                    {"role": "user", "content": email_request}
+                                ]
+                            )
+
+                        generated_text = response.output_text.strip()
+                        if "본문:" in generated_text:
+                            subject_part, body_part = generated_text.split("본문:", 1)
+                            st.session_state.email_generated_subject = (
+                                subject_part.replace("제목:", "").strip()
+                            )
+                            st.session_state.email_generated_body = body_part.strip()
+                        else:
+                            st.session_state.email_generated_subject = "AI 작성 이메일"
+                            st.session_state.email_generated_body = generated_text
+
+                    except Exception as e:
+                        st.error(f"이메일 작성 중 오류가 발생했습니다: {e}")
+
+            if st.session_state.email_generated_body:
+                st.markdown("#### AI 작성 결과")
+                st.text_input(
+                    "이메일 제목",
+                    key="email_generated_subject_view",
+                    value=st.session_state.email_generated_subject,
+                    disabled=True
+                )
+                st.text_area(
+                    "이메일 본문",
+                    key="email_generated_body_view",
+                    value=st.session_state.email_generated_body,
+                    height=260,
+                    disabled=True
+                )
+                if st.button("작성 결과 복사", key="email_copy_generated"):
+                    email_copy_text = (
+                        f"제목: {st.session_state.email_generated_subject}\n\n"
+                        f"{st.session_state.email_generated_body}"
+                    )
+                    st.code(email_copy_text)
+
+        with manual_tab:
+            st.markdown("#### 직접 이메일 작성")
+            with st.form("manual_email_form"):
+                manual_to = st.text_input("받는 사람")
+                manual_subject = st.text_input("제목")
+                manual_body = st.text_area("본문", height=280)
+                manual_save = st.form_submit_button("작성 내용 확인")
+
+            if manual_save:
+                if not manual_subject.strip() or not manual_body.strip():
+                    st.warning("이메일 제목과 본문을 입력해주세요.")
+                else:
+                    st.success("이메일 작성 내용이 준비되었습니다.")
+                    st.markdown(f"**받는 사람:** {manual_to or '미입력'}")
+                    st.markdown(f"**제목:** {manual_subject}")
+                    st.text_area(
+                        "작성한 본문",
+                        value=manual_body,
+                        height=220,
+                        key="manual_email_preview"
+                    )
+
+    # --------------------------------------
+    # 이메일 관리
+    # --------------------------------------
+    elif st.session_state.email_page == "이메일 관리":
+
+        st.subheader("📂 이메일 관리")
+        st.caption("이메일 내용을 입력하거나 TXT 파일을 업로드하면 AI가 분류하고 요약합니다.")
+
+        email_input_method = st.radio(
+            "이메일 내용 입력 방식",
+            ["직접 입력", "TXT 파일 업로드"],
+            horizontal=True,
+            key="email_input_method"
+        )
+
+        email_content = ""
+
+        if email_input_method == "직접 입력":
+            email_content = st.text_area(
+                "분석할 이메일 내용",
+                placeholder="이메일 제목과 본문을 붙여넣어 주세요.",
+                height=230,
+                key="email_manage_text"
+            )
+        else:
+            email_file = st.file_uploader(
+                "이메일 TXT 파일 업로드",
+                type=["txt"],
+                key="email_manage_file"
+            )
+            if email_file is not None:
+                raw_email = email_file.getvalue()
+                for encoding in ["utf-8", "utf-8-sig", "cp949", "euc-kr"]:
+                    try:
+                        email_content = raw_email.decode(encoding)
+                        break
+                    except UnicodeDecodeError:
+                        continue
+                if not email_content:
+                    st.error("TXT 파일을 읽을 수 없습니다. UTF-8 또는 CP949 인코딩 파일을 사용해주세요.")
+
+        if st.button("이메일 분석하기", key="email_analyze"):
+            if not email_content.strip():
+                st.warning("분석할 이메일 내용을 입력하거나 업로드해주세요.")
+            else:
+                try:
+                    with st.spinner("이메일을 분류하고 주요 내용을 정리하고 있습니다..."):
+                        response = client.responses.create(
+                            model="gpt-4o-mini",
+                            input=[
+                                {
+                                    "role": "system",
+                                    "content": """
+당신은 직장 업무용 이메일을 정리하는 AI 비서입니다.
+제공된 이메일의 내용만 근거로 아래 항목을 한국어로 정리하세요.
+
+1. 이메일 분류: 업무 요청, 일정/회의, 보고, 안내/공지, 문의/답변, 기타 중 적절한 유형
+2. 핵심 요약: 이메일의 목적과 주요 내용을 2~4문장으로 요약
+3. 주요 내용: 중요한 사실, 요청 사항, 전달 사항을 항목별로 정리
+4. 해야 할 일: 수신자가 수행해야 할 업무가 있다면 정리
+5. 일정 및 기한: 날짜나 마감일이 명시된 경우에만 기재
+6. 주의사항: 놓치면 안 되는 조건이나 참고 사항
+
+정보가 없는 항목은 '해당 내용 없음'이라고 표시하고 임의로 추측하지 마세요.
+"""
+                                },
+                                {"role": "user", "content": email_content}
+                            ]
+                        )
+                    st.session_state.email_analysis_result = response.output_text
+                except Exception as e:
+                    st.error(f"이메일 분석 중 오류가 발생했습니다: {e}")
+
+        if st.session_state.email_analysis_result:
+            st.divider()
+            st.markdown("### 📌 이메일 분석 결과")
+            st.write(st.session_state.email_analysis_result)
 
 
 # ==========================================
