@@ -93,6 +93,7 @@ with st.sidebar:
     st.write("📋  회의")
     st.write("✉️  이메일")
     st.write("🎙️  음성 비서")
+    st.write("💬  AI 챗봇")
 
 
 # 오른쪽 메인 화면
