@@ -41,13 +41,6 @@ st.markdown("""
     background-color: transparent;
 }
 
-[data-testid="stForm"] {
-    background-color: white;
-    padding: 25px;
-    border-radius: 15px;
-    border: 1px solid #E5EAF3;
-}
-
 .stButton > button {
     border-radius: 8px;
     border: 1px solid #DCE3F0;
@@ -65,14 +58,14 @@ st.markdown("""
 
 
 # 세션 상태 초기화
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 if "selected_chat_id" not in st.session_state:
     st.session_state.selected_chat_id = None
+
+if "chat_counter" not in st.session_state:
+    st.session_state.chat_counter = 0
 
 
 # 왼쪽 사이드바
@@ -189,71 +182,109 @@ elif menu == "🎙️ 음성 비서":
 elif menu == "💬 AI 챗봇":
 
     st.title("AI 챗봇")
-    st.caption("에이블에게 업무와 관련된 내용을 질문해 보세요.")
+    st.caption("에이블과 자유롭게 대화를 나눠보세요.")
+
+    # 새로운 대화 버튼
+    if st.button("＋ 새로운 대화"):
+
+        st.session_state.selected_chat_id = None
+        st.rerun()
 
     st.divider()
 
-    # 새로운 대화 영역
-    st.subheader("✏️ 새로운 대화")
+    # 현재 선택된 대화 찾기
+    selected_chat = None
 
-    with st.form("chat_form"):
+    if st.session_state.selected_chat_id is not None:
 
-        user_input = st.text_area(
-            "메시지 입력",
-            placeholder="에이블에게 무엇이든 질문해 보세요.",
-            height=100
-        )
+        for chat in st.session_state.chat_history:
 
-        send = st.form_submit_button("전송")
+            if chat["id"] == st.session_state.selected_chat_id:
+                selected_chat = chat
+                break
 
-    # 메시지 전송
-    if send:
+    # 대화 내용 표시
+    if selected_chat is not None:
 
-        if user_input.strip():
+        for message in selected_chat["messages"]:
 
-            with st.spinner("에이블이 답변을 작성하고 있습니다..."):
+            with st.chat_message(message["role"]):
+                st.write(message["content"])
 
-                response = client.responses.create(
-                    model="gpt-4o-mini",
-                    input=[
-                        {
-                            "role": "system",
-                            "content": "당신은 업무를 도와주는 친절한 AI 개인 비서 에이블입니다."
-                        },
-                        {
-                            "role": "user",
-                            "content": user_input
-                        }
-                    ]
-                )
+    else:
 
-                answer = response.output_text
+        st.subheader("새로운 대화")
+        st.write("안녕하세요! 에이블입니다. 무엇을 도와드릴까요?")
 
-            # 새로운 대화 저장
+    # 채팅 입력창
+    user_input = st.chat_input("메시지를 입력하세요.")
+
+    # 사용자가 메시지를 입력했을 때
+    if user_input:
+
+        # 기존 대화가 없으면 새 대화 생성
+        if selected_chat is None:
+
             new_chat = {
-                "id": len(st.session_state.chat_history),
+                "id": st.session_state.chat_counter,
                 "title": user_input[:30],
-                "messages": [
-                    {"role": "user", "content": user_input},
-                    {"role": "assistant", "content": answer}
-                ]
+                "messages": []
             }
+
+            st.session_state.chat_counter += 1
 
             st.session_state.chat_history.insert(0, new_chat)
 
-            # 최근 대화 10개만 유지
-            st.session_state.chat_history = st.session_state.chat_history[:10]
-
             st.session_state.selected_chat_id = new_chat["id"]
 
-            st.rerun()
+            selected_chat = new_chat
 
-        else:
-            st.warning("메시지를 입력해주세요.")
+        # 사용자 메시지 저장
+        selected_chat["messages"].append({
+            "role": "user",
+            "content": user_input
+        })
+
+        # 이전 대화 + 현재 질문을 함께 전달
+        input_messages = [
+            {
+                "role": "system",
+                "content": """
+                당신은 업무를 도와주는 친절한 AI 개인 비서 에이블입니다.
+                사용자의 이전 대화 내용을 참고하여 자연스럽게 대화를 이어가세요.
+                """
+            }
+        ]
+
+        input_messages.extend(selected_chat["messages"])
+
+        # AI 답변 생성
+        with st.spinner("에이블이 답변을 작성하고 있습니다..."):
+
+            response = client.responses.create(
+                model="gpt-4o-mini",
+                input=input_messages
+            )
+
+            answer = response.output_text
+
+        # AI 답변 저장
+        selected_chat["messages"].append({
+            "role": "assistant",
+            "content": answer
+        })
+
+        # 최근 대화 10개만 유지
+        st.session_state.chat_history = (
+            st.session_state.chat_history[:10]
+        )
+
+        # 화면 새로고침
+        st.rerun()
 
     st.divider()
 
-    # 최근 대화 영역
+    # 최근 대화 목록
     st.subheader("🕘 최근 대화")
 
     if st.session_state.chat_history:
@@ -265,32 +296,10 @@ elif menu == "💬 AI 챗봇":
                 key=f"chat_{chat['id']}",
                 use_container_width=True
             ):
+
                 st.session_state.selected_chat_id = chat["id"]
-
-        # 선택한 대화 내용 표시
-        selected_chat = next(
-            (
-                chat for chat in st.session_state.chat_history
-                if chat["id"] == st.session_state.selected_chat_id
-            ),
-            None
-        )
-
-        if selected_chat:
-
-            st.divider()
-            st.subheader("대화 내용")
-
-            for message in selected_chat["messages"]:
-
-                if message["role"] == "user":
-                    with st.chat_message("user"):
-                        st.write(message["content"])
-
-                else:
-                    with st.chat_message("assistant"):
-                        st.write(message["content"])
+                st.rerun()
 
     else:
 
-        st.info("아직 이전 대화가 없습니다. 새로운 대화를 시작해 보세요.")
+        st.info("아직 이전 대화가 없습니다.")
