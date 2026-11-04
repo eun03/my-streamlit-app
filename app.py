@@ -253,38 +253,130 @@ st.markdown("""
     background-color: white;
 }
 
-/* 홈 화면 대시보드 */
+/* 홈 화면 대시보드 전용 디자인 */
+.home-welcome {
+    margin: 2px 0 22px 2px;
+}
+.home-welcome-title {
+    color: #192D52;
+    font-size: 27px;
+    line-height: 1.35;
+    font-weight: 800;
+    letter-spacing: -0.7px;
+}
+.home-welcome-subtitle {
+    color: #8795AC;
+    font-size: 14px;
+    margin-top: 5px;
+}
 .home-stat-card {
-    background: #FFFFFF;
-    border: 1px solid #E1E7F2;
-    border-radius: 22px;
-    padding: 24px 26px;
-    min-height: 148px;
-    box-shadow: 0 5px 18px rgba(35, 55, 95, 0.04);
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(145deg, #FFFFFF 0%, #FBFCFF 100%);
+    border: 1px solid #E5EAF4;
+    border-radius: 20px;
+    padding: 23px 25px 21px;
+    min-height: 146px;
+    box-shadow: 0 7px 22px rgba(34, 55, 95, 0.055);
+    transition: transform .18s ease, box-shadow .18s ease;
 }
+.home-stat-card:after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 20px;
+    bottom: 20px;
+    width: 4px;
+    border-radius: 0 5px 5px 0;
+    background: #8175F6;
+}
+.home-stat-card.task-stat:after { background: #18B7A5; }
+.home-stat-card.chat-stat:after { background: #F3A640; }
 .home-stat-label {
-    color: #8A9AB5;
-    font-size: 16px;
-    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #8795AC;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
 }
+.home-stat-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 11px;
+    background: #F0EEFF;
+    color: #7565F5;
+    font-size: 18px;
+}
+.task-stat .home-stat-icon { background: #E8F8F5; color: #16A995; }
+.chat-stat .home-stat-icon { background: #FFF4E6; color: #E99A2D; }
 .home-stat-number {
     color: #192D52;
-    font-size: 38px;
-    font-weight: 700;
-    margin-top: 20px;
-    line-height: 1.2;
+    font-size: 39px;
+    font-weight: 800;
+    margin-top: 17px;
+    line-height: 1.15;
+    letter-spacing: -1.2px;
 }
-.home-task-card {
+.home-stat-unit {
+    font-size: 16px;
+    font-weight: 600;
+    color: #71819B;
+    margin-left: 4px;
+}
+[data-testid="stVerticalBlockBorderWrapper"]:has(.home-task-heading) {
     background: #FFFFFF;
-    border: 1px solid #E1E7F2;
-    border-radius: 24px;
-    padding: 26px 30px;
-    box-shadow: 0 5px 18px rgba(35, 55, 95, 0.04);
+    border: 1px solid #E5EAF4;
+    border-radius: 20px;
+    padding: 25px 29px 20px;
+    box-shadow: 0 7px 22px rgba(34, 55, 95, 0.045);
 }
 .home-task-heading {
     color: #192D52;
-    font-size: 22px;
-    font-weight: 700;
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+}
+.home-task-subtitle {
+    color: #98A4B8;
+    font-size: 13px;
+    margin-top: 4px;
+}
+[data-testid="stVerticalBlockBorderWrapper"]:has(.home-task-heading) .stCheckbox {
+    padding: 8px 0;
+}
+[data-testid="stVerticalBlockBorderWrapper"]:has(.home-task-heading) .stCheckbox label p {
+    color: #40516D;
+    font-size: 15px;
+}
+[data-testid="stVerticalBlockBorderWrapper"]:has(.home-task-heading) [data-testid="stVerticalBlockBorderWrapper"] {
+    border: none;
+}
+.home-task-panel .stButton > button {
+    border-radius: 10px;
+    min-height: 38px;
+    font-weight: 650;
+}
+.home-add-task-button .stButton > button {
+    background: #F2F0FF !important;
+    border: 1px solid #E4E0FF !important;
+    color: #7062E8 !important;
+}
+.home-delete-task .stButton > button {
+    background: transparent !important;
+    border: none !important;
+    color: #9AA7BA !important;
+    font-size: 20px;
+}
+.home-task-empty {
+    color: #9AA7BA;
+    text-align: center;
+    padding: 24px 0 12px;
+    font-size: 14px;
 }
 
 </style>
@@ -744,9 +836,7 @@ menu = st.session_state.menu
 
 if menu == "🏠  홈":
 
-    # 오늘 날짜 기준 대시보드 데이터 계산
     today = date.today()
-
     today_schedule_count = sum(
         1 for event in st.session_state.schedule_events
         if event["start_date"] <= today <= event["end_date"]
@@ -756,99 +846,108 @@ if menu == "🏠  홈":
         if event["date"] == today
     )
     today_total_count = today_schedule_count + today_meeting_count
-
     unfinished_task_count = sum(
-        1 for task in st.session_state.home_tasks
-        if not task["done"]
+        1 for task in st.session_state.home_tasks if not task["done"]
     )
     conversation_count = len(st.session_state.chat_history)
 
-    # 상단 요약 카드
-    card1, card2, card3 = st.columns(3)
+    st.markdown(
+        f"""
+        <div class="home-welcome">
+            <div class="home-welcome-title">좋은 하루예요! 오늘도 에이블과 함께해요 👋</div>
+            <div class="home-welcome-subtitle">{today.strftime('%Y년 %m월 %d일')} · 오늘의 업무와 일정을 한눈에 확인하세요.</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    card1, card2, card3 = st.columns(3, gap="medium")
 
     with card1:
         st.markdown(
             f"""
             <div class="home-stat-card">
-                <div class="home-stat-label">오늘의 일정　<span style="background:#F0EDFF;color:#7565F5;padding:4px 9px;border-radius:9px;">예시</span></div>
-                <div class="home-stat-number">{today_total_count}<span style="font-size:18px;font-weight:500;">건</span></div>
+                <div class="home-stat-label"><span>오늘의 일정</span><span class="home-stat-icon">▦</span></div>
+                <div class="home-stat-number">{today_total_count}<span class="home-stat-unit">건</span></div>
             </div>
-            """,
-            unsafe_allow_html=True
+            """, unsafe_allow_html=True
         )
 
     with card2:
         st.markdown(
             f"""
-            <div class="home-stat-card">
-                <div class="home-stat-label">할 일 목록　<span style="float:right;color:#14B8A6;font-size:24px;">✓</span></div>
-                <div class="home-stat-number">{unfinished_task_count}<span style="font-size:18px;font-weight:500;">개</span></div>
+            <div class="home-stat-card task-stat">
+                <div class="home-stat-label"><span>남은 할 일</span><span class="home-stat-icon">✓</span></div>
+                <div class="home-stat-number">{unfinished_task_count}<span class="home-stat-unit">개</span></div>
             </div>
-            """,
-            unsafe_allow_html=True
+            """, unsafe_allow_html=True
         )
 
     with card3:
         st.markdown(
             f"""
-            <div class="home-stat-card">
-                <div class="home-stat-label">대화 기록　<span style="float:right;color:#F5A623;font-size:23px;">☏</span></div>
-                <div class="home-stat-number">{conversation_count}<span style="font-size:18px;font-weight:500;">건</span></div>
+            <div class="home-stat-card chat-stat">
+                <div class="home-stat-label"><span>대화 기록</span><span class="home-stat-icon">☏</span></div>
+                <div class="home-stat-number">{conversation_count}<span class="home-stat-unit">건</span></div>
             </div>
-            """,
-            unsafe_allow_html=True
+            """, unsafe_allow_html=True
         )
 
     st.write("")
-
-    # 업무 체크리스트
     with st.container(border=True):
-        heading_col, add_col = st.columns([8, 1.3], vertical_alignment="center")
 
+        heading_col, add_col = st.columns([7, 1.5], vertical_alignment="center")
         with heading_col:
             st.markdown(
-                '<div class="home-task-heading">▢　나의 업무 체크리스트</div>',
-                unsafe_allow_html=True
+                """
+                <div class="home-task-heading">▣　나의 업무 체크리스트</div>
+                <div class="home-task-subtitle">오늘 처리할 업무를 확인하고 완료한 항목을 체크해 보세요.</div>
+                """, unsafe_allow_html=True
             )
 
         with add_col:
+            st.markdown('<div class="home-add-task-button">', unsafe_allow_html=True)
             add_task_clicked = st.button(
-                "+ 할 일 추가",
-                key="home_add_task_toggle",
-                use_container_width=True
+                "+ 할 일 추가", key="home_add_task_toggle", use_container_width=True
             )
 
-        if add_task_clicked:
-            st.session_state.home_show_add_task = not st.session_state.get(
-                "home_show_add_task", False
+    if add_task_clicked:
+        st.session_state.home_show_add_task = not st.session_state.get(
+            "home_show_add_task", False
+        )
+
+    if st.session_state.get("home_show_add_task", False):
+        with st.form("home_add_task_form", clear_on_submit=True):
+            new_task_title = st.text_input(
+                "할 일 내용", placeholder="새로운 업무를 입력하세요."
             )
+            add_task_submit = st.form_submit_button("추가")
 
-        if st.session_state.get("home_show_add_task", False):
-            with st.form("home_add_task_form", clear_on_submit=True):
-                new_task_title = st.text_input("할 일 내용", placeholder="새로운 업무를 입력하세요.")
-                add_task_submit = st.form_submit_button("추가")
+        if add_task_submit:
+            if new_task_title.strip():
+                st.session_state.home_tasks.append({
+                    "id": st.session_state.home_task_counter,
+                    "title": new_task_title.strip(),
+                    "done": False
+                })
+                st.session_state.home_task_counter += 1
+                st.session_state.home_show_add_task = False
+                st.rerun()
+            else:
+                st.warning("할 일 내용을 입력해주세요.")
 
-            if add_task_submit:
-                if new_task_title.strip():
-                    st.session_state.home_tasks.append({
-                        "id": st.session_state.home_task_counter,
-                        "title": new_task_title.strip(),
-                        "done": False
-                    })
-                    st.session_state.home_task_counter += 1
-                    st.session_state.home_show_add_task = False
-                    st.rerun()
-                else:
-                    st.warning("할 일 내용을 입력해주세요.")
-
-        st.write("")
+    st.write("")
+    if not st.session_state.home_tasks:
+        st.markdown(
+            '<div class="home-task-empty">등록된 업무가 없어요. 오른쪽 위의 ‘할 일 추가’를 눌러 업무를 등록해 보세요.</div>',
+            unsafe_allow_html=True
+        )
+    else:
         for task in st.session_state.home_tasks:
-            task_col, delete_col = st.columns([10, 0.5], vertical_alignment="center")
-
+            task_col, delete_col = st.columns([12, 0.55], vertical_alignment="center")
             with task_col:
                 checked = st.checkbox(
-                    task["title"],
-                    value=task["done"],
+                    task["title"], value=task["done"],
                     key=f"home_task_check_{task['id']}"
                 )
                 if checked != task["done"]:
@@ -856,12 +955,16 @@ if menu == "🏠  홈":
                     st.rerun()
 
             with delete_col:
+                st.markdown('<div class="home-delete-task">', unsafe_allow_html=True)
                 if st.button("×", key=f"home_task_delete_{task['id']}"):
                     st.session_state.home_tasks = [
                         item for item in st.session_state.home_tasks
                         if item["id"] != task["id"]
                     ]
                     st.rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ==========================================
