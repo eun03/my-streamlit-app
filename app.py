@@ -9,21 +9,21 @@ client = OpenAI()
 # 페이지 설정
 st.set_page_config(page_title="음성 AI 서비스", page_icon="🤖", layout="wide")
 
-# 화면 영역 나누기
-left, right = st.columns([1, 4])
 
-# 왼쪽 메뉴
-with left:
+# 왼쪽 사이드바
+with st.sidebar:
+    st.title("ABLE")
     st.write("메뉴")
+
     st.write("1. 홈")
     st.write("2. 일정")
     st.write("3. 회의")
     st.write("4. 이메일")
     st.write("5. 음성 비서")
 
+
 # 오른쪽 메인 화면
-with right:
-    st.write("메인 화면")
+st.title("메인 화면")
 
 
 # 역할 지정
