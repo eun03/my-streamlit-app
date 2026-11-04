@@ -370,63 +370,57 @@ with st.sidebar:
 
             st.rerun()
 
-    # AI 챗봇 하위 메뉴
-    if st.session_state.menu == "💬  AI 챗봇":
+        # 음성 비서 하위 메뉴
+        if item == "🎙️  음성 비서":
 
-        st.markdown(
-            "<div style='height:5px'></div>",
-            unsafe_allow_html=True
-        )
+            if st.session_state.menu == "🎙️  음성 비서":
 
-        if st.button(
-            "✏️  새로운 대화",
-            key="sub_new",
-            use_container_width=True
-        ):
+                if st.button(
+                    "🎤  음성 명령",
+                    key="voice_command",
+                    use_container_width=True
+                ):
 
-            st.session_state.chat_page = "새로운 대화"
-            st.session_state.selected_chat_id = None
-            st.session_state.edit_chat_id = None
+                    st.session_state.voice_page = "음성 명령"
+                    st.rerun()
 
-            st.rerun()
+                if st.button(
+                    "🔊  실시간 음성 대화",
+                    key="voice_realtime",
+                    use_container_width=True
+                ):
 
-        if st.button(
-            "🕘  최근 대화",
-            key="sub_recent",
-            use_container_width=True
-        ):
+                    st.session_state.voice_page = "실시간 음성 대화"
+                    st.rerun()
 
-            st.session_state.chat_page = "최근 대화"
-            st.session_state.selected_chat_id = None
-            st.session_state.edit_chat_id = None
+        # AI 챗봇 하위 메뉴
+        if item == "💬  AI 챗봇":
 
-            st.rerun()
+            if st.session_state.menu == "💬  AI 챗봇":
 
-    # 음성 비서 하위 메뉴
-    if st.session_state.menu == "🎙️  음성 비서":
+                if st.button(
+                    "✏️  새로운 대화",
+                    key="sub_new",
+                    use_container_width=True
+                ):
 
-        st.markdown(
-            "<div style='height:5px'></div>",
-            unsafe_allow_html=True
-        )
+                    st.session_state.chat_page = "새로운 대화"
+                    st.session_state.selected_chat_id = None
+                    st.session_state.edit_chat_id = None
 
-        if st.button(
-            "🎤  음성 명령",
-            key="voice_command",
-            use_container_width=True
-        ):
+                    st.rerun()
 
-            st.session_state.voice_page = "음성 명령"
-            st.rerun()
+                if st.button(
+                    "🕘  최근 대화",
+                    key="sub_recent",
+                    use_container_width=True
+                ):
 
-        if st.button(
-            "🔊  실시간 음성 대화",
-            key="voice_realtime",
-            use_container_width=True
-        ):
+                    st.session_state.chat_page = "최근 대화"
+                    st.session_state.selected_chat_id = None
+                    st.session_state.edit_chat_id = None
 
-            st.session_state.voice_page = "실시간 음성 대화"
-            st.rerun()
+                    st.rerun()
 
 
 # 현재 선택한 메뉴
@@ -485,6 +479,7 @@ elif menu == "🎙️  음성 비서":
     if st.session_state.voice_page == "음성 명령":
 
         st.title("🎤 음성 명령")
+
         st.caption(
             "음성으로 업무를 요청하고 STT 변환 결과와 AI 답변을 확인하세요."
         )
@@ -492,16 +487,18 @@ elif menu == "🎙️  음성 비서":
         # 텍스트 파일 업로드
         uploaded_file = st.file_uploader(
             "텍스트 파일 업로드",
-            type=["txt"]
+            type=["txt"],
+            key="command_file"
         )
 
         # 음성 녹음
         audio_value = st.audio_input(
-            "무엇을 도와드릴까요?"
+            "무엇을 도와드릴까요?",
+            key="command_audio"
         )
 
         # 실행 버튼
-        if st.button("실행"):
+        if st.button("실행", key="command_submit"):
 
             if audio_value is None:
 
@@ -527,7 +524,7 @@ elif menu == "🎙️  음성 비서":
 
                         file_text = uploaded_file.read().decode("utf-8")
 
-                    # AI에게 전달할 메시지
+                    # 음성 인식 결과와 파일 내용 결합
                     user_message = transcript_text
 
                     if file_text:
@@ -537,7 +534,7 @@ elif menu == "🎙️  음성 비서":
                             + file_text
                         )
 
-                    # 이전 음성 명령 대화에 사용자 메시지 추가
+                    # 대화 기록에 사용자 메시지 저장
                     st.session_state.voice_messages.append({
                         "role": "user",
                         "content": user_message
@@ -578,16 +575,24 @@ elif menu == "🎙️  음성 비서":
         )
 
         st.info(
-            "마이크 버튼을 눌러 말한 뒤 녹음을 완료하면 에이블이 음성으로 답변합니다."
+            "텍스트 파일을 업로드하거나 마이크로 말해보세요."
+        )
+
+        # 텍스트 파일 업로드
+        uploaded_file = st.file_uploader(
+            "텍스트 파일 업로드",
+            type=["txt"],
+            key="realtime_file"
         )
 
         # 음성 녹음
         audio_value = st.audio_input(
-            "에이블에게 말해보세요."
+            "에이블에게 말해보세요.",
+            key="realtime_audio"
         )
 
-        # 음성 대화 실행 버튼
-        if st.button("대화하기"):
+        # 대화하기 버튼
+        if st.button("대화하기", key="realtime_submit"):
 
             if audio_value is None:
 
@@ -602,10 +607,27 @@ elif menu == "🎙️  음성 비서":
 
                         transcript_text = speech_to_text(audio_value)
 
-                    # 사용자 음성 내용 저장
+                    # 업로드 파일 읽기
+                    file_text = ""
+
+                    if uploaded_file is not None:
+
+                        file_text = uploaded_file.read().decode("utf-8")
+
+                    # 음성 내용과 파일 내용 결합
+                    user_message = transcript_text
+
+                    if file_text:
+
+                        user_message += (
+                            "\n\n다음 업로드 파일 내용을 참고하여 답변해주세요:\n"
+                            + file_text
+                        )
+
+                    # 사용자 메시지 저장
                     st.session_state.realtime_messages.append({
                         "role": "user",
-                        "content": transcript_text
+                        "content": user_message
                     })
 
                     # AI 답변 생성
@@ -621,7 +643,7 @@ elif menu == "🎙️  음성 비서":
                         "content": answer
                     })
 
-                    # 답변을 음성으로 변환
+                    # 답변 음성 변환
                     with st.spinner("답변을 음성으로 변환하고 있습니다..."):
 
                         audio_response = text_to_speech(answer)
@@ -637,7 +659,7 @@ elif menu == "🎙️  음성 비서":
                     st.error(f"음성 대화 중 오류가 발생했습니다: {e}")
 
         # 대화 초기화
-        if st.button("대화 초기화"):
+        if st.button("대화 초기화", key="realtime_reset"):
 
             st.session_state.realtime_messages = []
 
