@@ -1216,6 +1216,182 @@ def page_education():
     """, unsafe_allow_html=True)
 
 
+
+
+# =========================================================
+# 11. 취업과정 페이지
+# =========================================================
+
+def page_career():
+
+    st.markdown("""
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+            <div class="page-title">💼 취업과정</div>
+            <div class="page-subtitle">Career &amp; Job Preparation</div>
+        </div>
+        <div style="
+            background:linear-gradient(90deg,#20b8c2,#159eae);
+            color:white;padding:7px 18px;border-radius:20px;
+            font-size:13px;font-weight:900;">
+            JOB PREPARATION
+        </div>
+    </div>
+
+    <div class="hero" style="min-height:145px;">
+        <div>
+            <h1>AIVLE School 취업 준비 가이드</h1>
+            <h3>학습부터 포트폴리오, 면접까지<br>
+                실무형 취업 역량을 완성해 보세요!</h3>
+        </div>
+        <div class="hero-icon">🧑🏻‍💼📈</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 01. 취업 준비 로드맵
+    section_title(1, "취업 준비 로드맵")
+
+    roadmap = [
+        ("🎯", "직무 탐색", "관심 직무 이해 및<br>요구 역량 파악"),
+        ("📚", "역량 강화", "교육 과정 기반<br>핵심 역량 확보"),
+        ("💻", "포트폴리오", "프로젝트 정리 및<br>성과 도출"),
+        ("📄", "서류 준비", "이력서·자기소개서<br>작성"),
+        ("👥", "면접 대비", "기술·인성 면접 및<br>실전 연습")
+    ]
+    cols = st.columns(5)
+    for i, (icon, title, desc) in enumerate(roadmap):
+        with cols[i]:
+            st.markdown(f"""
+            <div class="roadmap-card" style="
+                min-height:130px;padding:13px 7px;
+                background:linear-gradient(145deg,#e4f9f7,#edf4ff);">
+                <div class="roadmap-icon">{icon}</div>
+                <h3>{title}</h3>
+                <p>{desc}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            if i < 4:
+                st.markdown(
+                    "<div style='text-align:center;color:#249eb0;"
+                    "font-size:20px;font-weight:900;'>→</div>",
+                    unsafe_allow_html=True
+                )
+
+    # 02. 취업 지원 프로그램 / 03. 직무별 정보
+    left, right = st.columns([1, 1.35], gap="medium")
+
+    with left:
+        section_title(2, "주요 취업 지원 프로그램")
+        programs = [
+            ("🎓", "취업 특강", "현직자 직무 특강 및<br>채용 트렌드 안내"),
+            ("📄", "자소서 클리닉", "자기소개서 작성법과<br>1:1 피드백"),
+            ("👥", "모의 면접", "실전형 면접 연습 및<br>개별 피드백"),
+            ("🏢", "채용 연계", "KT 및 협력사<br>채용 정보 제공")
+        ]
+        for row in range(2):
+            cols = st.columns(2)
+            for j in range(2):
+                icon, title, desc = programs[row * 2 + j]
+                with cols[j]:
+                    st.markdown(f"""
+                    <div class="info-card" style="
+                        min-height:112px;padding:13px 8px;margin-bottom:10px;">
+                        <div class="card-icon">{icon}</div>
+                        <h3 style="text-align:center;font-size:14px;">{title}</h3>
+                        <p style="text-align:center;">{desc}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+    with right:
+        section_title(3, "직무별 정보")
+        tab_dx, tab_ai = st.tabs(["DX 컨설턴트", "AI 개발자"])
+
+        with tab_dx:
+            st.markdown("""
+            <div class="project-card" style="min-height:220px;">
+                <div style="display:flex;gap:15px;align-items:center;">
+                    <div style="font-size:38px;">📊</div>
+                    <div>
+                        <h3>DX 컨설턴트 (DX Consultant)</h3>
+                        <p>데이터와 AI를 활용해 기업의 비즈니스 문제를 분석하고,
+                        디지털 전환을 기획·제안하는 직무입니다.</p>
+                    </div>
+                </div>
+                <hr>
+                <p><b style="color:#16aeb8;">✓ 주요 업무</b>　데이터 분석, DX 과제 기획, 솔루션 제안</p>
+                <p><b style="color:#16aeb8;">✓ 요구 역량</b>　데이터 분석력, 비즈니스 이해, 커뮤니케이션</p>
+                <p><b style="color:#16aeb8;">✓ 연관 직무</b>　데이터 분석가, IT기획, PM, BI 개발자 등</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with tab_ai:
+            st.markdown("""
+            <div class="project-card" style="min-height:220px;">
+                <div style="display:flex;gap:15px;align-items:center;">
+                    <div style="font-size:38px;">🤖</div>
+                    <div>
+                        <h3>AI 개발자 (AI Developer)</h3>
+                        <p>AI 모델과 서비스를 개발하고 데이터 기반 문제 해결을
+                        위한 인공지능 기능을 구현하는 직무입니다.</p>
+                    </div>
+                </div>
+                <hr>
+                <p><b style="color:#16aeb8;">✓ 주요 업무</b>　AI 모델 개발, 데이터 전처리, 서비스 구현</p>
+                <p><b style="color:#16aeb8;">✓ 요구 역량</b>　Python, 머신러닝·딥러닝, 알고리즘</p>
+                <p><b style="color:#16aeb8;">✓ 연관 직무</b>　AI 엔지니어, ML 엔지니어, 데이터 엔지니어 등</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # 04. 취업 준비 자료실 / 05. 추천 학습 콘텐츠
+    left, right = st.columns([1.25, 1], gap="medium")
+
+    with left:
+        section_title(4, "취업 준비 자료실")
+        resources = [
+            ("📄", "이력서 템플릿", "경험과 역량을 구조화해 정리"),
+            ("🖊️", "자기소개서 가이드", "문항별 작성 전략과 사례"),
+            ("💬", "면접 질문 모음", "직무·인성 면접 예상 질문"),
+            ("📁", "포트폴리오 예시", "프로젝트 구성 및 성과 표현")
+        ]
+        cols = st.columns(4)
+        for i, (icon, title, desc) in enumerate(resources):
+            with cols[i]:
+                st.markdown(f"""
+                <div class="info-card" style="
+                    min-height:115px;padding:13px 6px;">
+                    <div class="card-icon">{icon}</div>
+                    <h3 style="text-align:center;font-size:13px;">{title}</h3>
+                    <p style="text-align:center;">{desc}</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+    with right:
+        section_title(5, "추천 학습 콘텐츠")
+        st.markdown("""
+        <div class="project-card" style="
+            background:linear-gradient(120deg,#f0fbf9,#f5f9ff);">
+            <p style="font-size:14px;line-height:2.0;color:#29465f;">
+                <b style="color:#18b58a;">✓</b>　프로젝트 경험 정리 및 성과 수치화 방법<br>
+                <b style="color:#18b58a;">✓</b>　데이터·AI 직무 면접 대비 예상 질문<br>
+                <b style="color:#18b58a;">✓</b>　포트폴리오 구성 및 발표 팁<br>
+                <b style="color:#18b58a;">✓</b>　기업별 채용 공고 및 자격 요건 정리
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="bottom-banner">
+        <div style="display:flex;align-items:center;gap:25px;">
+            <div style="font-size:42px;">◢</div>
+            <div>
+                <h2>Next Career with AIVLE School!</h2>
+                <p>AIVLE School과 함께, 실무 역량을 취업으로 연결하세요.</p>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
 # =========================================================
 # 11. 학습 Q&A 페이지
 # =========================================================
@@ -1330,9 +1506,7 @@ with main_col:
         page_education()
 
     elif menu == "💼 취업과정":
-        page_placeholder(
-            "취업과정", "취업 준비와 커리어 개발", "💼"
-        )
+        page_career()
 
     elif menu == "📁 포트폴리오":
         page_placeholder(
