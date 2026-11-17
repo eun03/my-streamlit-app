@@ -132,6 +132,34 @@ section[data-testid="stSidebar"] div.stButton > button[data-testid="stBaseButton
     color: #28b7c0 !important;
 }
 
+/* 사이드바 바로가기 카드 */
+section[data-testid="stSidebar"] .sidebar-shortcut {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 9px 0;
+    padding: 13px 12px;
+    border-radius: 13px;
+    background: rgba(255,255,255,0.97);
+    color: #193653 !important;
+    text-decoration: none !important;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.45;
+    box-shadow: 0 3px 10px rgba(25,54,83,0.08);
+    transition: transform .15s ease, background .15s ease;
+}
+section[data-testid="stSidebar"] .sidebar-shortcut:hover {
+    background: #eafafa;
+    color: #087f8c !important;
+    transform: translateY(-1px);
+}
+section[data-testid="stSidebar"] .sidebar-shortcut span {
+    color: #159eae !important;
+    float: right;
+    font-size: 15px;
+}
+
 /* 사이드바 로고 */
 .logo-box {
     background: white;
@@ -822,33 +850,27 @@ with st.sidebar:
             st.session_state.menu = item
             st.rerun()
 
+    # 사이드바 하단 바로가기
     st.markdown("<br><hr>", unsafe_allow_html=True)
-
-    # 관리자 메뉴는 제거하고 문서 업로드/관리는 유지
-    st.markdown("#### 📄 백서 및 학습 문서 업로드")
-
-    uploaded_file = st.file_uploader(
-        "파일 선택",
-        type=["pdf", "txt", "docx"],
-        help="200MB per file"
+    st.markdown(
+        "<div style='font-size:15px;font-weight:900;color:white;margin:8px 0 12px;'>🔗 바로가기</div>",
+        unsafe_allow_html=True
     )
 
-    st.caption("200MB per file · PDF, TXT, DOCX")
+    shortcuts = [
+        ("🎓", "KT 에이블 에듀 LMS", "https://aivle.edu.kt.co.kr"),
+        ("🏫", "KT 에이블스쿨 공식 홈페이지", "https://aivle.kt.co.kr/home/main/indexMain"),
+        ("📸", "AIVLE 공식 인스타그램", "https://www.instagram.com/aivlestory?igshid=YmMyMTA2M2Y%3D"),
+        ("💼", "에이블스쿨 취업지원 플랫폼", "https://aivle10.univjob.co.kr"),
+    ]
 
-    st.markdown("---")
-    st.markdown("#### 📑 등록된 문서 관리")
-
-    st.selectbox(
-        "문서 선택",
-        ["등록된 문서 없음"],
-        label_visibility="collapsed"
-    )
-
-    st.caption("저장된 청크: 0개")
-
-    if st.button("🗑️ 대화 전체 삭제", use_container_width=True):
-        st.session_state.messages = []
-        st.rerun()
+    for icon, label, url in shortcuts:
+        link_html = (
+            '<a class="sidebar-shortcut" href="' + url + '" '
+            'target="_blank" rel="noopener noreferrer">'
+            + icon + ' ' + label + '<span>↗</span></a>'
+        )
+        st.markdown(link_html, unsafe_allow_html=True)
 
     st.markdown("""
     <br><br>
@@ -857,6 +879,7 @@ with st.sidebar:
         Learning Assistant
     </div>
     """, unsafe_allow_html=True)
+
 
 
 # =========================================================
