@@ -611,6 +611,20 @@ section[data-testid="stSidebar"] button[kind="primary"] * {
     -webkit-text-fill-color: #193653 !important;
 }
 
+
+.profile-stage-badge {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: #e4f7f7;
+    color: #159eaa;
+    border: 1px solid #c7eeee;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.4;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -949,11 +963,18 @@ if st.session_state.profile_completed:
 
 def right_panel():
 
-    st.markdown("""
+    # 홈 화면의 Assistant 카드에 프로필에서 선택한 현재 단계를 표시합니다.
+    current_stage = st.session_state.get("user_profile", {}).get("stage", "에이블러(교육생)")
+    stage_html = ""
+    if st.session_state.get("menu") == "🏠 홈":
+        stage_html = f'<div class="profile-stage-badge">현재 단계&nbsp; · &nbsp;{escape(current_stage)}</div>'
+
+    st.markdown(f"""
     <div class="right-card" style="text-align:center;">
         <div class="assistant-icon">👩🏻‍💻</div>
         <h3 style="margin-top:12px;">AIVLE Assistant</h3>
         <p>Your Learning Partner</p>
+        {stage_html}
     </div>
 
     <div class="right-card">
