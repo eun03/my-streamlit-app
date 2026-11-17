@@ -46,11 +46,20 @@ st.markdown("""
     font-family: 'Malgun Gothic', sans-serif;
 }
 
-/* 기본 여백 */
-.block-container {
-    padding-top: 1.5rem;
-    padding-bottom: 2rem;
-    max-width: 100%;
+/* 기본 여백: Streamlit 상단 툴바와 본문이 겹치지 않도록 공통 적용 */
+.block-container,
+.main .block-container,
+div[data-testid="stAppViewBlockContainer"],
+.stAppViewBlockContainer {
+    padding-top: 4.25rem !important;
+    padding-bottom: 2rem !important;
+    max-width: 100% !important;
+}
+
+/* Streamlit 상단 헤더 공간 확보 */
+header[data-testid="stHeader"] {
+    height: 3rem;
+    background: transparent;
 }
 
 /* 사이드바 */
