@@ -2,6 +2,7 @@
 import os
 import tempfile
 import hashlib
+import textwrap
 import streamlit as st
 
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -32,18 +33,31 @@ st.set_page_config(
 CHROMA_DIR = "chroma_db"
 COLLECTION = "aivle_docs"
 
-# 교안과 동일한 청크 설정
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 100
 
 
 # =====================================================
-# 3. API KEY 읽어오기
+# 3. HTML 렌더링 함수
+# =====================================================
+
+def render_html(content):
+
+    html = textwrap.dedent(content).strip()
+
+    st.markdown(
+        html,
+        unsafe_allow_html=True
+    )
+
+
+# =====================================================
+# 4. API KEY 읽어오기
 # =====================================================
 
 def load_api_key():
 
-    # Streamlit Cloud Secrets 우선 사용
+    # Streamlit Cloud Secrets
     try:
         key = st.secrets.get("OPENAI_API_KEY", None)
 
@@ -54,11 +68,11 @@ def load_api_key():
     except Exception:
         pass
 
-    # 환경변수 사용
+    # 환경변수
     if os.getenv("OPENAI_API_KEY"):
         return
 
-    # 로컬 api_key.txt 사용
+    # 로컬 api_key.txt
     filepath = "./api_key.txt"
 
     if os.path.exists(filepath):
@@ -84,23 +98,25 @@ api_key = os.getenv("OPENAI_API_KEY")
 
 
 # =====================================================
-# 4. CSS 디자인
+# 5. CSS 디자인
 # =====================================================
 
 st.markdown("""
 <style>
 
+/* 전체 배경 */
 .stApp {
     background-color: #edf6f7;
 }
 
 .block-container {
     max-width: 1550px;
-    padding-top: 2rem;
+    padding-top: 1.5rem;
     padding-bottom: 2rem;
 }
 
-#MainMenu, footer {
+#MainMenu,
+footer {
     visibility: hidden;
 }
 
@@ -113,7 +129,7 @@ section[data-testid="stSidebar"] > div {
     padding: 25px 15px;
 }
 
-/* 사이드바 텍스트 */
+/* 사이드바 글씨 */
 section[data-testid="stSidebar"] p,
 section[data-testid="stSidebar"] label {
     color: white;
@@ -123,15 +139,21 @@ section[data-testid="stSidebar"] label {
 .logo-area {
     background-color: white;
     border-radius: 18px;
-    padding: 17px 10px;
+    padding: 15px;
     margin-bottom: 30px;
     text-align: center;
+}
+
+.logo-area img {
+    width: 145px;
+    max-width: 100%;
+    height: auto;
 }
 
 .logo-area p {
     color: #9aa8b0 !important;
     font-size: 11px;
-    margin-bottom: 0;
+    margin: 0;
 }
 
 /* 인사말 */
@@ -152,7 +174,7 @@ section[data-testid="stSidebar"] label {
 .dashboard-card {
     border-radius: 23px;
     padding: 24px;
-    min-height: 155px;
+    min-height: 165px;
     box-shadow: 0 5px 20px rgba(50,80,100,0.07);
     margin-bottom: 18px;
 }
@@ -175,7 +197,7 @@ section[data-testid="stSidebar"] label {
 
 .dashboard-card p {
     font-size: 13px;
-    line-height: 1.7;
+    line-height: 1.8;
     color: white;
 }
 
@@ -185,7 +207,7 @@ section[data-testid="stSidebar"] label {
     border-radius: 20px;
     padding: 17px 12px;
     box-shadow: 0 5px 18px rgba(50,80,100,0.06);
-    min-height: 105px;
+    min-height: 110px;
     text-align: center;
     color: #263c54;
 }
@@ -211,15 +233,15 @@ section[data-testid="stSidebar"] label {
     font-size: 19px;
     font-weight: 800;
     color: #19334d;
-    margin: 15px 0;
+    margin: 18px 0 15px 0;
 }
 
-/* 채팅창 */
+/* 채팅 영역 */
 .chat-box {
     background-color: white;
     border-radius: 25px;
     padding: 22px;
-    min-height: 400px;
+    min-height: 370px;
     box-shadow: 0 5px 20px rgba(50,80,100,0.06);
 }
 
@@ -315,11 +337,16 @@ div[data-testid="stTextInput"] input {
     min-height: 42px;
 }
 
-/* 업로더 */
+/* 파일 업로더 */
 div[data-testid="stFileUploader"] {
     background-color: white;
     border-radius: 13px;
     padding: 10px;
+}
+
+/* 채팅 입력창 */
+div[data-testid="stChatInput"] {
+    border-radius: 15px;
 }
 
 </style>
@@ -327,7 +354,7 @@ div[data-testid="stFileUploader"] {
 
 
 # =====================================================
-# 5. 세션 상태 초기화
+# 6. 세션 상태 초기화
 # =====================================================
 
 if "messages" not in st.session_state:
@@ -338,253 +365,7 @@ if "pending_prompt" not in st.session_state:
 
 
 # =====================================================
-# 6. Embedding 모델
-# =====================================================
-
-@st.cache_resource
-def get_embedding():
-
-    return OpenAIEmbeddings(
-        model="text-embedding-3-small"
-    )
-
-
-# =====================================================
-# 7. 벡터 저장소 생성
-# =====================================================
-
-@st.cache_resource
-def get_vectorstore():
-
-    embedding = get_embedding()
-
-    vectorstore = Chroma(
-        collection_name=COLLECTION,
-        embedding_function=embedding,
-        persist_directory=CHROMA_DIR
-    )
-
-    return vectorstore
-
-
-# =====================================================
-# 8. PDF 파일 읽기
-# =====================================================
-
-def load_pdf(uploaded_file):
-
-    temp_path = None
-
-    try:
-
-        with tempfile.NamedTemporaryFile(
-            suffix=".pdf",
-            delete=False
-        ) as temp_file:
-
-            temp_file.write(uploaded_file.getvalue())
-
-            temp_path = temp_file.name
-
-        loader = PyMuPDF4LLMLoader(temp_path)
-
-        docs = loader.load()
-
-        # 파일명 메타데이터 추가
-        for doc in docs:
-
-            doc.metadata["source"] = uploaded_file.name
-
-        return docs
-
-    finally:
-
-        if temp_path and os.path.exists(temp_path):
-            os.remove(temp_path)
-
-
-# =====================================================
-# 9. 텍스트 분할
-# =====================================================
-
-def split_documents(docs):
-
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=500,
-        chunk_overlap=100,
-        separators=["\n\n", "\n", ".", " ", ""]
-    )
-
-    chunks = splitter.split_documents(docs)
-
-    return chunks
-
-
-# =====================================================
-# 10. 기존 문서 삭제
-# =====================================================
-
-def delete_document(filename):
-
-    vectorstore = get_vectorstore()
-
-    result = vectorstore.get(
-        where={"source": filename}
-    )
-
-    ids = result.get("ids", [])
-
-    if ids:
-        vectorstore.delete(ids=ids)
-
-    return len(ids)
-
-
-# =====================================================
-# 11. 문서 업로드 및 벡터화
-# =====================================================
-
-def process_document(uploaded_file):
-
-    # PDF 파일 읽기
-    docs = load_pdf(uploaded_file)
-
-    # 텍스트 분할
-    chunks = split_documents(docs)
-
-    if not chunks:
-        raise ValueError(
-            "PDF에서 텍스트를 추출하지 못했습니다."
-        )
-
-    vectorstore = get_vectorstore()
-
-    filename = uploaded_file.name
-
-    # 같은 파일명이 있다면 기존 문서 교체
-    delete_document(filename)
-
-    # 청크별 고유 ID 생성
-    ids = []
-
-    for index, chunk in enumerate(chunks):
-
-        unique_text = (
-            filename
-            + str(index)
-            + chunk.page_content
-        )
-
-        doc_id = hashlib.sha256(
-            unique_text.encode("utf-8")
-        ).hexdigest()
-
-        ids.append(doc_id)
-
-    # 벡터 저장
-    vectorstore.add_documents(
-        documents=chunks,
-        ids=ids
-    )
-
-    return len(chunks)
-
-
-# =====================================================
-# 12. 등록된 문서 목록
-# =====================================================
-
-def get_document_list():
-
-    vectorstore = get_vectorstore()
-
-    result = vectorstore.get(
-        include=["metadatas"]
-    )
-
-    document_counts = {}
-
-    for metadata in result.get("metadatas", []):
-
-        if metadata:
-
-            filename = metadata.get("source")
-
-            if filename:
-
-                document_counts[filename] = (
-                    document_counts.get(filename, 0) + 1
-                )
-
-    return document_counts
-
-
-# =====================================================
-# 13. RAG 체인 구성
-# =====================================================
-
-@st.cache_resource
-def get_chain():
-
-    vectorstore = get_vectorstore()
-
-    retriever = vectorstore.as_retriever(
-        search_kwargs={"k": 3}
-    )
-
-    s_msg = """
-당신은 AIVLE School 교육생을 위한 학습 도우미입니다.
-
-반드시 제공된 문서를 기반으로 답변하세요.
-
-[답변 규칙]
-
-1. 문서에 있는 정보를 근거로 답변하세요.
-2. 문서에 없는 내용을 임의로 만들어내지 마세요.
-3. 관련 내용을 찾을 수 없다면
-   '등록된 문서에서 해당 내용을 확인할 수 없습니다.'
-   라고 답변하세요.
-4. 교육생이 이해하기 쉽도록 친절하고 구체적으로 설명하세요.
-5. 필요하다면 항목별로 정리하세요.
-6. 선배 경험이나 학습 조언도 문서에 근거가 있는 경우에만 답변하세요.
-
-[참고 문서]
-
-{context}
-"""
-
-    h_msg = "{input}"
-
-    messages = [
-        ("system", s_msg),
-        ("human", h_msg)
-    ]
-
-    prompt = ChatPromptTemplate.from_messages(messages)
-
-    llm = ChatOpenAI(
-        model="gpt-4o-mini",
-        streaming=True,
-        temperature=0
-    )
-
-    rag_chain = (
-        {
-            "context": itemgetter("input")
-            | retriever
-            | format_docs,
-            "input": itemgetter("input")
-        }
-        | prompt
-        | llm
-        | StrOutputParser()
-    )
-
-    return rag_chain
-
-
-# =====================================================
-# 14. 문서 포맷팅
+# 7. 문서 포맷팅 함수
 # =====================================================
 
 def format_docs(docs):
@@ -615,14 +396,261 @@ def format_docs(docs):
 
 
 # =====================================================
-# 15. 참고 문서 검색
+# 8. Embedding 모델
+# =====================================================
+
+@st.cache_resource
+def get_embedding():
+
+    embedding = OpenAIEmbeddings(
+        model="text-embedding-3-small"
+    )
+
+    return embedding
+
+
+# =====================================================
+# 9. 벡터 저장소
+# =====================================================
+
+@st.cache_resource
+def get_vectorstore():
+
+    embedding = get_embedding()
+
+    vectorstore = Chroma(
+        collection_name=COLLECTION,
+        embedding_function=embedding,
+        persist_directory=CHROMA_DIR
+    )
+
+    return vectorstore
+
+
+# =====================================================
+# 10. PDF 파일 읽기
+# =====================================================
+
+def load_pdf(uploaded_file):
+
+    temp_path = None
+
+    try:
+
+        with tempfile.NamedTemporaryFile(
+            suffix=".pdf",
+            delete=False
+        ) as temp_file:
+
+            temp_file.write(
+                uploaded_file.getvalue()
+            )
+
+            temp_path = temp_file.name
+
+        loader = PyMuPDF4LLMLoader(temp_path)
+
+        docs = loader.load()
+
+        for doc in docs:
+
+            doc.metadata["source"] = uploaded_file.name
+
+        return docs
+
+    finally:
+
+        if temp_path and os.path.exists(temp_path):
+
+            os.remove(temp_path)
+
+
+# =====================================================
+# 11. 텍스트 분할
+# =====================================================
+
+def split_documents(docs):
+
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=500,
+        chunk_overlap=100,
+        separators=["\n\n", "\n", ".", " ", ""]
+    )
+
+    chunks = splitter.split_documents(docs)
+
+    return chunks
+
+
+# =====================================================
+# 12. 기존 문서 삭제
+# =====================================================
+
+def delete_document(filename):
+
+    vectorstore = get_vectorstore()
+
+    result = vectorstore.get(
+        where={"source": filename}
+    )
+
+    ids = result.get("ids", [])
+
+    if ids:
+
+        vectorstore.delete(ids=ids)
+
+    return len(ids)
+
+
+# =====================================================
+# 13. 문서 업로드 및 벡터화
+# =====================================================
+
+def process_document(uploaded_file):
+
+    # PDF 읽기
+    docs = load_pdf(uploaded_file)
+
+    # 텍스트 분할
+    chunks = split_documents(docs)
+
+    if not chunks:
+
+        raise ValueError(
+            "PDF에서 텍스트를 추출하지 못했습니다."
+        )
+
+    vectorstore = get_vectorstore()
+
+    filename = uploaded_file.name
+
+    # 동일 파일명 문서 교체
+    delete_document(filename)
+
+    # 청크 ID 생성
+    ids = []
+
+    for index, chunk in enumerate(chunks):
+
+        unique_text = (
+            filename
+            + str(index)
+            + chunk.page_content
+        )
+
+        doc_id = hashlib.sha256(
+            unique_text.encode("utf-8")
+        ).hexdigest()
+
+        ids.append(doc_id)
+
+    # 벡터 저장
+    vectorstore.add_documents(
+        documents=chunks,
+        ids=ids
+    )
+
+    return len(chunks)
+
+
+# =====================================================
+# 14. 등록된 문서 목록
+# =====================================================
+
+def get_document_list():
+
+    vectorstore = get_vectorstore()
+
+    result = vectorstore.get(
+        include=["metadatas"]
+    )
+
+    document_counts = {}
+
+    for metadata in result.get("metadatas", []):
+
+        if metadata:
+
+            filename = metadata.get("source")
+
+            if filename:
+
+                document_counts[filename] = (
+                    document_counts.get(filename, 0) + 1
+                )
+
+    return document_counts
+
+
+# =====================================================
+# 15. RAG 체인 구성
+# =====================================================
+
+@st.cache_resource
+def get_chain():
+
+    retriever = get_vectorstore().as_retriever(
+        search_kwargs={"k": 3}
+    )
+
+    s_msg = """
+당신은 AIVLE School 교육생을 위한 학습 도우미입니다.
+
+반드시 제공된 문서를 기반으로 답변하세요.
+
+[답변 규칙]
+
+1. 문서에 있는 정보를 근거로 답변하세요.
+2. 문서에 없는 내용을 임의로 만들어내지 마세요.
+3. 관련 내용을 찾을 수 없다면
+   '등록된 문서에서 해당 내용을 확인할 수 없습니다.'
+   라고 답변하세요.
+4. 교육생이 이해하기 쉽도록 친절하고 구체적으로 설명하세요.
+5. 필요하다면 항목별로 정리하세요.
+6. 선배 경험이나 학습 조언도 문서에 근거가 있는 경우에만 답변하세요.
+
+[참고 문서]
+
+{context}
+"""
+
+    h_msg = "{input}"
+
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", s_msg),
+        ("human", h_msg)
+    ])
+
+    llm = ChatOpenAI(
+        model="gpt-4o-mini",
+        streaming=True,
+        temperature=0
+    )
+
+    rag_chain = (
+        {
+            "context": itemgetter("input")
+            | retriever
+            | format_docs,
+
+            "input": itemgetter("input")
+        }
+        | prompt
+        | llm
+        | StrOutputParser()
+    )
+
+    return rag_chain
+
+
+# =====================================================
+# 16. 참고 문서 검색
 # =====================================================
 
 def get_sources(question):
 
-    vectorstore = get_vectorstore()
-
-    retriever = vectorstore.as_retriever(
+    retriever = get_vectorstore().as_retriever(
         search_kwargs={"k": 3}
     )
 
@@ -658,27 +686,32 @@ def get_sources(question):
 
 
 # =====================================================
-# 16. 사이드바
+# 17. 사이드바
 # =====================================================
 
 with st.sidebar:
 
-    # 로고
-    st.markdown("""
+    # AIVLE 로고
+    render_html("""
     <div class="logo-area">
 
         <img
             src="https://raw.githubusercontent.com/Jangrae/img/master/aivle.png"
-            width="145">
+            alt="AIVLE School Logo">
 
         <p>AIVLE SCHOOL</p>
 
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
     # 메뉴
-    st.markdown("""
-    <div style="color:white;font-weight:600;line-height:3.5;">
+    render_html("""
+    <div style="
+        color:white;
+        font-weight:600;
+        line-height:3.5;
+        font-size:14px;
+    ">
 
         🏠　홈<br>
         📚　학습 도우미<br>
@@ -686,7 +719,7 @@ with st.sidebar:
         💬　대화 기록
 
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
     st.markdown("---")
 
@@ -759,7 +792,8 @@ with st.sidebar:
                 )
 
                 st.caption(
-                    f"저장된 청크: {documents[selected_document]}개"
+                    f"저장된 청크: "
+                    f"{documents[selected_document]}개"
                 )
 
                 if st.button(
@@ -769,7 +803,9 @@ with st.sidebar:
 
                     delete_document(selected_document)
 
-                    st.success("문서가 삭제되었습니다.")
+                    st.success(
+                        "문서가 삭제되었습니다."
+                    )
 
                     st.rerun()
 
@@ -792,18 +828,21 @@ with st.sidebar:
 
         st.rerun()
 
-    st.markdown("<br><br>", unsafe_allow_html=True)
-
-    st.markdown("""
-    <div style="color:white;font-size:12px;">
+    render_html("""
+    <div style="
+        margin-top:45px;
+        color:white;
+        font-size:12px;
+        line-height:1.7;
+    ">
         AIVLE School<br>
         Learning Assistant
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
 
 # =====================================================
-# 17. 메인 화면
+# 18. 메인 화면 레이아웃
 # =====================================================
 
 left, right = st.columns(
@@ -813,16 +852,19 @@ left, right = st.columns(
 
 
 # =====================================================
-# 18. 중앙 대시보드
+# 19. 중앙 대시보드
 # =====================================================
 
 with left:
 
-    title_col, search_col = st.columns([5, 4])
+    # 인사말과 검색창
+    title_col, search_col = st.columns(
+        [5, 4]
+    )
 
     with title_col:
 
-        st.markdown("""
+        render_html("""
         <div class="greeting">
             Hello, AIVLE! 👋
         </div>
@@ -830,7 +872,7 @@ with left:
         <div class="sub-greeting">
             오늘도 새로운 지식을 함께 배워봐요.
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     with search_col:
 
@@ -853,12 +895,12 @@ with left:
                 search_value.strip()
             )
 
-    # 환영 카드
+    # Welcome 카드
     card1, card2 = st.columns(2)
 
     with card1:
 
-        st.markdown("""
+        render_html("""
         <div class="dashboard-card welcome-card">
 
             <h3>Welcome back! ✨</h3>
@@ -869,16 +911,19 @@ with left:
                 궁금한 내용을 자유롭게 질문해 보세요!
             </p>
 
-            <div style="font-size:27px;text-align:right;">
+            <div style="
+                font-size:27px;
+                text-align:right;
+            ">
                 📘 🤖
             </div>
 
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     with card2:
 
-        st.markdown("""
+        render_html("""
         <div class="dashboard-card result-card">
 
             <h3>Learning Guide 📊</h3>
@@ -889,54 +934,81 @@ with left:
                 필요한 정보를 빠르게 찾아보세요.
             </p>
 
-            <div style="font-size:27px;text-align:right;">
+            <div style="
+                font-size:27px;
+                text-align:right;
+            ">
                 💡 📚
             </div>
 
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     # Quick Menu
-    st.markdown("""
+    render_html("""
     <div class="section-title">
         Quick Menu
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
     f1, f2, f3 = st.columns(3)
 
     with f1:
 
-        st.markdown("""
+        render_html("""
         <div class="feature-card">
+
             <div class="feature-icon">📚</div>
-            <div class="feature-title">학습 자료</div>
-            <div class="feature-desc">교육 문서 기반 질문</div>
+
+            <div class="feature-title">
+                학습 자료
+            </div>
+
+            <div class="feature-desc">
+                교육 문서 기반 질문
+            </div>
+
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     with f2:
 
-        st.markdown("""
+        render_html("""
         <div class="feature-card">
+
             <div class="feature-icon">🧠</div>
-            <div class="feature-title">학습 Q&A</div>
-            <div class="feature-desc">AI 문서 검색 및 답변</div>
+
+            <div class="feature-title">
+                학습 Q&A
+            </div>
+
+            <div class="feature-desc">
+                AI 문서 검색 및 답변
+            </div>
+
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     with f3:
 
-        st.markdown("""
+        render_html("""
         <div class="feature-card">
-            <div class="feature-icon">🚀</div>
-            <div class="feature-title">미니프로젝트</div>
-            <div class="feature-desc">프로젝트 정보 확인</div>
-        </div>
-        """, unsafe_allow_html=True)
 
-    # 채팅 영역
-    st.markdown("""
+            <div class="feature-icon">🚀</div>
+
+            <div class="feature-title">
+                미니프로젝트
+            </div>
+
+            <div class="feature-desc">
+                프로젝트 정보 확인
+            </div>
+
+        </div>
+        """)
+
+    # 채팅 영역 제목
+    render_html("""
     <div class="section-title">
         💬 AI Learning Assistant
     </div>
@@ -953,9 +1025,9 @@ with left:
         </div>
 
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
-    # 대화 출력
+    # 이전 대화 출력
     if not st.session_state.messages:
 
         st.info(
@@ -985,13 +1057,13 @@ with left:
 
 
 # =====================================================
-# 19. 오른쪽 영역
+# 20. 오른쪽 영역
 # =====================================================
 
 with right:
 
     # 프로필
-    st.markdown("""
+    render_html("""
     <div class="profile-card">
 
         <div class="profile-icon">
@@ -1007,10 +1079,10 @@ with right:
         </div>
 
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
-    # 안내
-    st.markdown("""
+    # 학습 도우미 안내
+    render_html("""
     <div class="info-card">
 
         <div class="info-title">
@@ -1022,7 +1094,10 @@ with right:
             질문에 대한 답변을 제공합니다.
         </p>
 
-        <b style="color:#29445b;font-size:12px;">
+        <b style="
+            color:#29445b;
+            font-size:12px;
+        ">
             RAG 기반 문서 검색
         </b>
 
@@ -1031,14 +1106,14 @@ with right:
         </p>
 
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
     # 추천 질문
-    st.markdown("""
+    render_html("""
     <div class="section-title">
         💡 추천 질문
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
     questions = [
         "KT 에이블스쿨 지원 자격은?",
@@ -1047,32 +1122,34 @@ with right:
         "수료 기준은 무엇인가요?"
     ]
 
-    for i, q in enumerate(questions):
+    for i, question in enumerate(questions):
 
         if st.button(
-            q,
+            question,
             key=f"recommend_{i}",
             use_container_width=True
         ):
 
-            st.session_state.pending_prompt = q
+            st.session_state.pending_prompt = question
 
             st.rerun()
 
     # 최근 활동
-    st.markdown("<br>", unsafe_allow_html=True)
+    render_html("<br>")
 
-    st.markdown("""
+    render_html("""
     <div class="info-card">
 
         <div class="info-title">
             🕒 Recent Activity
         </div>
 
-        <p>최근 대화 기록</p>
+        <p>
+            최근 대화 기록
+        </p>
 
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
     recent_questions = [
         msg["content"]
@@ -1082,17 +1159,21 @@ with right:
 
     if recent_questions:
 
-        for q in recent_questions[:5]:
+        for question in recent_questions[:5]:
 
-            st.caption("💬 " + q[:35])
+            st.caption(
+                "💬 " + question[:35]
+            )
 
     else:
 
-        st.caption("아직 대화 기록이 없습니다.")
+        st.caption(
+            "아직 대화 기록이 없습니다."
+        )
 
 
 # =====================================================
-# 20. 질문 입력 및 RAG 답변
+# 21. 질문 입력 및 RAG 답변
 # =====================================================
 
 user_input = st.chat_input(
@@ -1144,7 +1225,7 @@ if prompt:
                     "content": prompt
                 })
 
-                # 관련 문서 검색
+                # 참고 문서 검색
                 sources = get_sources(prompt)
 
                 # RAG 체인 실행
