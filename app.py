@@ -2378,10 +2378,10 @@ ONTOLOGY_TRIPLES = [
     ("프로젝트", "hasDocument", "미니프로젝트 교안"),
 ]
 
-def build_ontology_graph(show_classes=True, show_properties=True):
-    """온톨로지 관계를 Graphviz DOT 그래프로 구성합니다."""
+def build_ontology_graph(show_classes=True, show_properties=True, search_term=""):
+    """온톨로지 관계를 Graphviz DOT 그래프로 구성하고 검색 결과를 강조합니다."""
     nodes = [
-        ('aivle', 'AIVLE\\nSchool', '#20b7b5', 'white'),
+        ('aivle', 'AIVLE\nSchool', '#20b7b5', 'white'),
         ('curriculum', '교육과정', '#8b79e8', 'white'),
         ('job', '직무', '#38c9b8', 'white'),
         ('project', '프로젝트', '#ffc94f', '#173653'),
@@ -2389,6 +2389,52 @@ def build_ontology_graph(show_classes=True, show_properties=True):
         ('outcome', '성과', '#ec8ab8', 'white'),
         ('document', '자료', '#8ac8dc', '#173653'),
     ]
+
+    node_labels = {
+        'aivle': 'AIVLE School',
+        'curriculum': '교육과정',
+        'job': '직무',
+        'project': '프로젝트',
+        'skill': '학습기술',
+        'outcome': '성과',
+        'document': '자료',
+    }
+    class_aliases = {
+        'aivle': 'AIVLE School 교육 기관',
+        'curriculum': '교육과정 교육 트랙 및 학습 단계',
+        'job': '직무 AI 개발자 DX 컨설턴트',
+        'project': '프로젝트 미니 프로젝트 빅 프로젝트',
+        'skill': '학습기술 Python SQL 데이터 분석 생성형 AI 머신러닝 딥러닝',
+        'outcome': '성과 포트폴리오 취업 연계',
+        'document': '자료 백서 교안 프로젝트 문서',
+    }
+
+    q = (search_term or "").strip().casefold()
+    matched_nodes = set()
+    if q:
+        for node_id, searchable in class_aliases.items():
+            if q in searchable.casefold():
+                matched_nodes.add(node_id)
+        for subject, predicate, obj in ONTOLOGY_TRIPLES:
+            if q in subject.casefold() or q in obj.casefold():
+                for node_id, label in node_labels.items():
+                    if label.replace('\n', ' ').casefold() in subject.casefold() or label.replace('\n', ' ').casefold() in obj.casefold():
+                        matched_nodes.add(node_id)
+            if q in predicate.casefold():
+                # 관계명 검색 시 해당 관계의 양 끝 노드를 함께 강조합니다.
+                for source, target, relation in [
+                    ('aivle', 'curriculum', 'hasCurriculum'),
+                    ('aivle', 'job', 'hasJob'),
+                    ('aivle', 'project', 'hasProject'),
+                    ('curriculum', 'skill', 'hasSkill'),
+                    ('curriculum', 'project', 'hasProject'),
+                    ('job', 'skill', 'hasSkill'),
+                    ('project', 'skill', 'usesSkill'),
+                    ('project', 'outcome', 'hasOutcome'),
+                    ('curriculum', 'document', 'hasDocument'),
+                ]:
+                    if relation.casefold() == predicate.casefold():
+                        matched_nodes.update([source, target])
 
     dot = [
         'digraph AIVLE {',
@@ -2399,9 +2445,12 @@ def build_ontology_graph(show_classes=True, show_properties=True):
 
     if show_classes:
         for node_id, label, fill, font in nodes:
-            dot.append(f'{node_id} [label="{label}", fillcolor="{fill}", fontcolor="{font}"];')
+            if q and node_id in matched_nodes:
+                dot.append(f'{node_id} [label="{label}", fillcolor="#ffe08a", fontcolor="#173653", color="#f39c12", penwidth=4];')
+            else:
+                dot.append(f'{node_id} [label="{label}", fillcolor="{fill}", fontcolor="{font}"];')
     else:
-        dot.append('aivle [label="AIVLE\\nSchool", fillcolor="#20b7b5", fontcolor="white"];')
+        dot.append('aivle [label="AIVLE\nSchool", fillcolor="#20b7b5", fontcolor="white"];')
 
     if show_classes and show_properties:
         edges = [
@@ -2431,7 +2480,11 @@ def build_ontology_graph(show_classes=True, show_properties=True):
         edges = []
 
     for source, target, label in edges:
-        dot.append(f'{source} -> {target} [label="{label}"];')
+        is_match = bool(q and (source in matched_nodes or target in matched_nodes or q in label.casefold()))
+        if is_match:
+            dot.append(f'{source} -> {target} [label="{label}", color="#e89b20", fontcolor="#b66b00", penwidth=3.8];')
+        else:
+            dot.append(f'{source} -> {target} [label="{label}"];')
 
     dot.append('}')
     return "\n".join(dot)
@@ -2510,17 +2563,46 @@ def page_ontology():
 
         with graph_col:
             with st.container(border=True):
+                search_term = st.text_input(
+                    "🔎 관계망 검색",
+                    key="ontology_graph_search",
+                    placeholder="개념, 직무, 기술 또는 관계명을 검색하세요. 예: DX 컨설턴트, Python, hasSkill"
+                )
                 filter_cols = st.columns([1, 1, 1.5])
                 with filter_cols[0]:
                     show_classes = st.checkbox("개념(클래스)", value=True, key="onto_show_classes")
                 with filter_cols[1]:
                     show_properties = st.checkbox("관계(속성)", value=True, key="onto_show_properties")
                 with filter_cols[2]:
-                    st.caption("노드를 선택하는 대신 오른쪽 목록에서 개념을 탐색할 수 있습니다.")
+                    st.caption("검색 결과는 관계망에서 노드와 연결선을 강조해 표시합니다.")
+
+                q = (search_term or "").strip().casefold()
+                matched_triples = [
+                    (subject, predicate, obj)
+                    for subject, predicate, obj in ONTOLOGY_TRIPLES
+                    if q and q in f"{subject} {predicate} {obj}".casefold()
+                ]
+                matched_classes = [
+                    (class_id, label, description)
+                    for class_id, label, description in ONTOLOGY_CLASSES
+                    if q and q in f"{class_id} {label} {description}".casefold()
+                ]
+                matched_properties = [
+                    (prop, description)
+                    for prop, description in ONTOLOGY_PROPERTIES
+                    if q and q in f"{prop} {description}".casefold()
+                ]
+
+                if q:
+                    result_count = len(matched_triples) + len(matched_classes) + len(matched_properties)
+                    if result_count:
+                        st.success(f"검색 결과 {result_count}건을 찾았습니다. 관계망에서 노란색으로 강조된 항목을 확인하세요.")
+                    else:
+                        st.warning("검색 결과가 없습니다. 다른 키워드로 검색해 주세요.")
 
                 try:
                     st.graphviz_chart(
-                        build_ontology_graph(show_classes, show_properties),
+                        build_ontology_graph(show_classes, show_properties, search_term),
                         use_container_width=True
                     )
                 except Exception:
@@ -2530,6 +2612,30 @@ def page_ontology():
                         use_container_width=True,
                         hide_index=True
                     )
+
+                if q and (matched_triples or matched_classes or matched_properties):
+                    with st.expander("🔎 검색 결과 자세히 보기", expanded=True):
+                        if matched_classes:
+                            st.markdown("**관련 개념(클래스)**")
+                            st.dataframe(
+                                [{"클래스": label, "설명": description, "ID": class_id}
+                                 for class_id, label, description in matched_classes],
+                                use_container_width=True, hide_index=True
+                            )
+                        if matched_properties:
+                            st.markdown("**관련 관계(속성)**")
+                            st.dataframe(
+                                [{"관계": prop, "설명": description}
+                                 for prop, description in matched_properties],
+                                use_container_width=True, hide_index=True
+                            )
+                        if matched_triples:
+                            st.markdown("**연결된 관계 데이터**")
+                            st.dataframe(
+                                [{"주체": subject, "관계": predicate, "대상": obj}
+                                 for subject, predicate, obj in matched_triples],
+                                use_container_width=True, hide_index=True
+                            )
 
         with info_col:
             with st.container(border=True):
