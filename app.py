@@ -1,3 +1,4 @@
+
 import streamlit as st
 import calendar
 from datetime import date, datetime
@@ -1392,6 +1393,342 @@ def page_career():
     """, unsafe_allow_html=True)
 
 
+
+
+# =========================================================
+# 12. 포트폴리오 페이지
+# =========================================================
+
+def page_portfolio():
+
+    st.markdown("""
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+            <div class="page-title">📁 포트폴리오</div>
+            <div class="page-subtitle">Portfolio</div>
+        </div>
+        <div style="
+            background:linear-gradient(90deg,#20b8b8,#159eae);
+            color:white;padding:8px 18px;border-radius:22px;
+            font-size:13px;font-weight:900;">
+            MY PORTFOLIO
+        </div>
+    </div>
+
+    <div class="hero" style="min-height:145px;">
+        <div>
+            <h1>프로젝트 경험을 가치 있는 포트폴리오로! ✨</h1>
+            <h3 style="color:#536d87;">
+                작성부터 AI 피드백, 선배 사례까지<br>
+                AIVLE School이 포트폴리오 완성을 도와드립니다.
+            </h3>
+        </div>
+        <div class="hero-icon">👩🏻‍💻📚</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 상단 바로가기 카드
+    quick_actions = [
+        ("✏️", "포트폴리오 작성", "템플릿으로 쉽게 작성", "작성하기"),
+        ("✨", "AI 피드백 받기", "완성도 분석 및 개선 제안", "피드백"),
+        ("📂", "선배 포트폴리오", "우수 사례 확인 및 참고", "사례"),
+        ("📖", "작성 가이드", "구성·작성법·예시 제공", "가이드")
+    ]
+    action_cols = st.columns(4)
+    for idx, (icon, title, desc, action) in enumerate(quick_actions):
+        with action_cols[idx]:
+            st.markdown(f"""
+            <div class="info-card" style="
+                min-height:108px;text-align:center;padding:13px 8px;
+                border:1px solid #e6f0f4;">
+                <div style="font-size:34px;margin-bottom:3px;">{icon}</div>
+                <h3 style="font-size:16px;margin:3px 0 5px;">{title}</h3>
+                <p>{desc}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("바로가기  ›", key=f"portfolio_quick_{idx}",
+                         use_container_width=True):
+                st.session_state.portfolio_section = action
+                st.rerun()
+
+    st.markdown("<div style='height:5px'></div>", unsafe_allow_html=True)
+
+    # 초기 상태
+    if "portfolio_section" not in st.session_state:
+        st.session_state.portfolio_section = "작성하기"
+    if "portfolio_items" not in st.session_state:
+        st.session_state.portfolio_items = []
+
+    # 작성 영역 / AI 피드백 영역
+    left_col, right_col = st.columns([1, 1.03], gap="medium")
+
+    with left_col:
+        section_title(1, "포트폴리오 작성하기")
+
+        write_tab, saved_tab = st.tabs(["✏️ 새로 작성하기", "📁 내 포트폴리오"])
+
+        with write_tab:
+            st.markdown("""
+            <div style="
+                background:#eef5fc;border-radius:13px;padding:9px 12px;
+                color:#294763;font-weight:800;text-align:center;
+                margin-bottom:12px;">
+                프로젝트 경험을 정리하고 나만의 포트폴리오를 만들어 보세요.
+            </div>
+            """, unsafe_allow_html=True)
+
+            template = st.radio(
+                "작성 템플릿 선택",
+                ["프로젝트 중심 템플릿", "취업용 종합 템플릿", "데이터·AI 특화 템플릿"],
+                horizontal=False,
+                key="portfolio_template"
+            )
+
+            template_desc = {
+                "프로젝트 중심 템플릿": "프로젝트별 문제 정의, 수행 과정, 결과와 성과를 중심으로 작성합니다.",
+                "취업용 종합 템플릿": "자기소개, 핵심 역량, 프로젝트, 자격증 및 경험을 종합적으로 구성합니다.",
+                "데이터·AI 특화 템플릿": "데이터 수집·전처리, 분석·모델링, 평가 지표와 비즈니스 적용을 강조합니다."
+            }
+            st.info(template_desc[template])
+
+            with st.form("portfolio_create_form", clear_on_submit=False):
+                project_title = st.text_input(
+                    "프로젝트명 *",
+                    placeholder="예: 공공데이터 기반 지역 주차 문제 분석"
+                )
+                c1, c2 = st.columns(2)
+                with c1:
+                    project_role = st.text_input(
+                        "담당 역할",
+                        placeholder="예: 데이터 분석 및 시각화"
+                    )
+                with c2:
+                    project_period = st.text_input(
+                        "진행 기간",
+                        placeholder="예: 2026.10 ~ 2026.11"
+                    )
+
+                tech_stack = st.text_input(
+                    "사용 기술",
+                    placeholder="예: Python, Pandas, Streamlit, SQL"
+                )
+                problem = st.text_area(
+                    "프로젝트 배경 및 문제 정의",
+                    placeholder="어떤 문제를 해결하기 위해 프로젝트를 진행했나요?",
+                    height=85
+                )
+                process = st.text_area(
+                    "수행 내용 및 문제 해결 과정",
+                    placeholder="데이터 수집, 분석, 모델링, 서비스 구현 등 수행 과정을 작성하세요.",
+                    height=100
+                )
+                result = st.text_area(
+                    "주요 성과 및 결과",
+                    placeholder="정량적·정성적 성과와 프로젝트 결과를 작성하세요.",
+                    height=85
+                )
+                lesson = st.text_area(
+                    "배운 점 및 개선할 점",
+                    placeholder="프로젝트를 통해 배운 점과 향후 개선 방향을 작성하세요.",
+                    height=75
+                )
+
+                submitted = st.form_submit_button(
+                    "✏️ 포트폴리오 저장하기",
+                    use_container_width=True,
+                    type="primary"
+                )
+
+                if submitted:
+                    if not project_title.strip():
+                        st.warning("프로젝트명을 입력해 주세요.")
+                    else:
+                        st.session_state.portfolio_items.append({
+                            "title": project_title.strip(),
+                            "role": project_role.strip(),
+                            "period": project_period.strip(),
+                            "tech": tech_stack.strip(),
+                            "problem": problem.strip(),
+                            "process": process.strip(),
+                            "result": result.strip(),
+                            "lesson": lesson.strip(),
+                            "template": template
+                        })
+                        st.success("포트폴리오가 내 포트폴리오에 저장되었습니다.")
+
+        with saved_tab:
+            saved_items = st.session_state.portfolio_items
+            if saved_items:
+                st.markdown(f"**저장된 포트폴리오 {len(saved_items)}개**")
+                for idx, item in enumerate(saved_items):
+                    with st.expander(f"📁 {item['title']}", expanded=False):
+                        st.caption(
+                            f"{item.get('role') or '역할 미입력'} · "
+                            f"{item.get('period') or '기간 미입력'}"
+                        )
+                        st.markdown(f"**사용 기술**  \n{item.get('tech') or '-'}")
+                        st.markdown(f"**문제 정의**  \n{item.get('problem') or '-'}")
+                        st.markdown(f"**수행 과정**  \n{item.get('process') or '-'}")
+                        st.markdown(f"**성과**  \n{item.get('result') or '-'}")
+                        st.markdown(f"**배운 점**  \n{item.get('lesson') or '-'}")
+                        if st.button("삭제", key=f"delete_portfolio_{idx}"):
+                            st.session_state.portfolio_items.pop(idx)
+                            st.rerun()
+            else:
+                st.markdown("""
+                <div class="project-card" style="text-align:center;padding:35px 12px;">
+                    <div style="font-size:42px;">📂</div>
+                    <h3>아직 저장된 포트폴리오가 없습니다.</h3>
+                    <p>새로 작성하기 탭에서 프로젝트 경험을 등록해 보세요.</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+    with right_col:
+        section_title(2, "AI 포트폴리오 피드백")
+
+        uploaded_portfolio = st.file_uploader(
+            "포트폴리오 파일 업로드",
+            type=["pdf", "ppt", "pptx", "docx"],
+            accept_multiple_files=False,
+            key="portfolio_feedback_upload",
+            help="PDF, PPT, PPTX, DOCX 파일을 업로드할 수 있습니다."
+        )
+
+        if uploaded_portfolio:
+            st.success(f"업로드 파일: {uploaded_portfolio.name}")
+            st.caption(f"파일 크기: {uploaded_portfolio.size / 1024:.1f} KB")
+
+        st.markdown("""
+        <div class="project-card" style="
+            background:linear-gradient(120deg,#e9fbf9,#e9f5ff);
+            padding:17px;">
+            <h3>✨ AI가 이런 항목을 중심으로 피드백해요!</h3>
+            <p style="font-size:14px;line-height:2.1;color:#29465f;">
+                <b style="color:#18b58a;">✓</b> 프로젝트 설명의 구체성과 논리 흐름 분석<br>
+                <b style="color:#18b58a;">✓</b> 성과(정량·정성) 표현의 적절성 평가<br>
+                <b style="color:#18b58a;">✓</b> 지원 직무 관점의 강점과 보완점 제안<br>
+                <b style="color:#18b58a;">✓</b> 구성, 가독성, 디자인 개선 가이드 제공
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if st.button("✨ AI 피드백 준비하기", key="portfolio_feedback_btn",
+                     use_container_width=True, type="primary"):
+            if uploaded_portfolio is None:
+                st.warning("피드백을 받을 포트폴리오 파일을 먼저 업로드해 주세요.")
+            else:
+                st.info(
+                    "파일이 업로드되었습니다. 실제 AI 내용 분석을 위해서는 "
+                    "PDF/PPT/DOCX 텍스트 추출 및 피드백 체인 연결이 추가로 필요합니다."
+                )
+
+    # 선배 포트폴리오 사례
+    st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+    examples_col, guide_col = st.columns([1.8, 1], gap="medium")
+
+    with examples_col:
+        section_title(3, "선배들의 포트폴리오")
+
+        category = st.radio(
+            "직무별 사례",
+            ["전체", "DX 컨설턴트", "AI 개발자"],
+            horizontal=True,
+            key="portfolio_example_category"
+        )
+
+        examples = [
+            {
+                "track": "DX 컨설턴트",
+                "title": "VOC 분석 기반 AI 고객상담 지원 서비스",
+                "desc": "고객 VOC를 분석해 상담 업무 효율화 방안을 제안한 프로젝트",
+                "tags": ["데이터분석", "RAG", "서비스기획"],
+                "cover": "🌊"
+            },
+            {
+                "track": "AI 개발자",
+                "title": "이미지 분류 기반 품질 검사 시스템",
+                "desc": "이미지 데이터를 활용한 품질 검사 자동화 프로젝트",
+                "tags": ["딥러닝", "모델링", "Flask"],
+                "cover": "🧠"
+            },
+            {
+                "track": "DX 컨설턴트",
+                "title": "공공데이터 분석을 통한 지역 복지 서비스 개선",
+                "desc": "공공데이터 분석을 통한 지역 현안 및 개선 방향 도출",
+                "tags": ["데이터분석", "시각화", "정책제안"],
+                "cover": "📊"
+            },
+            {
+                "track": "AI 개발자",
+                "title": "LLM 기반 문서 질의응답 시스템",
+                "desc": "문서 검색 증강 생성 기반 질의응답 서비스 구현",
+                "tags": ["LLM", "RAG", "LangChain"],
+                "cover": "🤖"
+            }
+        ]
+
+        filtered = [
+            x for x in examples
+            if category == "전체" or x["track"] == category
+        ]
+        card_cols = st.columns(4 if category == "전체" else 2)
+        for idx, item in enumerate(filtered):
+            with card_cols[idx % len(card_cols)]:
+                st.markdown(f"""
+                <div class="info-card" style="
+                    padding:10px 9px;min-height:190px;margin-bottom:8px;">
+                    <div style="
+                        height:64px;border-radius:9px;
+                        background:linear-gradient(120deg,#0e7589,#1ca8ad);
+                        display:flex;align-items:center;justify-content:center;
+                        font-size:34px;color:white;">
+                        {item['cover']}
+                    </div>
+                    <div style="
+                        display:inline-block;background:#e8f4ff;color:#2677bb;
+                        border-radius:6px;padding:2px 6px;font-size:10px;
+                        font-weight:800;margin-top:7px;">
+                        {item['track']}
+                    </div>
+                    <h3 style="font-size:13px;margin:5px 0;">{item['title']}</h3>
+                    <p style="font-size:11px;">{item['desc']}</p>
+                    <div style="margin-top:6px;">
+                        {''.join(f"<span style='display:inline-block;background:#edf3fa;color:#526d87;border-radius:9px;padding:3px 6px;margin:2px;font-size:9px;'>{tag}</span>" for tag in item['tags'])}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+    with guide_col:
+        section_title(4, "포트폴리오 작성 가이드")
+        guide_items = [
+            ("☷", "좋은 포트폴리오의 구성요소",
+             "지원 직무와 연결되는 핵심 역량, 프로젝트, 성과를 명확하게 구성하세요."),
+            ("</>", "프로젝트 작성 예시",
+             "문제 정의 → 분석 및 수행 과정 → 결과 → 배운 점 순서로 작성하면 좋아요."),
+            ("📊", "성과 지표 표현 방법",
+             "가능하면 건수, 비율, 시간 단축 등 객관적인 수치로 성과를 표현하세요."),
+            ("🎨", "디자인·가독성 팁",
+             "한 페이지에 하나의 핵심 메시지를 담고 글꼴과 색상을 일관되게 사용하세요."),
+            ("❔", "자주 묻는 질문 (FAQ)",
+             "팀 프로젝트에서 본인의 역할과 기여도를 구체적으로 구분해 작성하세요.")
+        ]
+        for idx, (icon, title, desc) in enumerate(guide_items):
+            with st.expander(f"{icon}  {title}"):
+                st.write(desc)
+
+    st.markdown("""
+    <div class="bottom-banner">
+        <div style="display:flex;align-items:center;gap:22px;">
+            <div style="font-size:42px;">📁</div>
+            <div>
+                <h2>Build Your Future Portfolio!</h2>
+                <p>프로젝트 경험을 나만의 경쟁력 있는 포트폴리오로 완성해 보세요.</p>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
 # =========================================================
 # 11. 학습 Q&A 페이지
 # =========================================================
@@ -1509,9 +1846,7 @@ with main_col:
         page_career()
 
     elif menu == "📁 포트폴리오":
-        page_placeholder(
-            "포트폴리오", "프로젝트 및 개인 포트폴리오 관리", "📁"
-        )
+        page_portfolio()
 
     elif menu == "📂 파일 불러오기":
         page_placeholder(
