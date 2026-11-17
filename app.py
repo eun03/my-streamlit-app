@@ -95,10 +95,33 @@ section[data-testid="stSidebar"] div.stButton > button:hover {
     color: white !important;
 }
 
-section[data-testid="stSidebar"] div.stButton > button[kind="primary"] {
-    background: #eafafa;
-    border-color: #eafafa;
+/* 선택된 메뉴: Streamlit 버전에 따라 kind / data-testid가 달라질 수 있어 함께 지정 */
+section[data-testid="stSidebar"] div.stButton > button[kind="primary"],
+section[data-testid="stSidebar"] div.stButton > button[data-testid="stBaseButton-primary"],
+section[data-testid="stSidebar"] div.stButton > [data-testid="stBaseButton-primary"] {
+    background: #eafafa !important;
+    border: 1px solid #eafafa !important;
     color: #193653 !important;
+}
+
+/* 선택된 메뉴 안쪽의 p, span 등에도 글자색을 직접 적용
+   (사이드바 전체 흰색 글자 규칙이 선택 메뉴에 상속되는 현상 방지) */
+section[data-testid="stSidebar"] div.stButton > button[kind="primary"] *,
+section[data-testid="stSidebar"] div.stButton > button[data-testid="stBaseButton-primary"] *,
+section[data-testid="stSidebar"] div.stButton > [data-testid="stBaseButton-primary"] * {
+    color: #193653 !important;
+    -webkit-text-fill-color: #193653 !important;
+}
+
+/* 비선택 메뉴는 흰색 글자 유지 */
+section[data-testid="stSidebar"] div.stButton > button[kind="secondary"],
+section[data-testid="stSidebar"] div.stButton > button[data-testid="stBaseButton-secondary"] {
+    color: #ffffff !important;
+}
+section[data-testid="stSidebar"] div.stButton > button[kind="secondary"] *,
+section[data-testid="stSidebar"] div.stButton > button[data-testid="stBaseButton-secondary"] * {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
 }
 
 /* 로고는 사이드바 기본 글자색 규칙의 영향을 받지 않도록 고정 */
@@ -501,6 +524,20 @@ div[data-testid="stChatMessage"] {
 
 hr {
     border-color: #d9eaee;
+}
+
+/* 사이드바 선택 메뉴 색상 최종 보정 */
+section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"],
+section[data-testid="stSidebar"] button[kind="primary"] {
+    background-color: #eafafa !important;
+    border-color: #eafafa !important;
+    color: #193653 !important;
+    -webkit-text-fill-color: #193653 !important;
+}
+section[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] *,
+section[data-testid="stSidebar"] button[kind="primary"] * {
+    color: #193653 !important;
+    -webkit-text-fill-color: #193653 !important;
 }
 
 </style>
