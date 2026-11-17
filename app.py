@@ -1,4 +1,5 @@
 
+
 import streamlit as st
 import calendar
 import io
@@ -772,6 +773,76 @@ if "last_rag_error" not in st.session_state:
 
 
 # =========================================================
+# 4-1. 최초 프로필 설정 화면
+# =========================================================
+
+if "profile_completed" not in st.session_state:
+    st.session_state.profile_completed = False
+
+if "user_profile" not in st.session_state:
+    st.session_state.user_profile = {}
+
+if not st.session_state.profile_completed:
+    st.markdown("""
+    <style>
+    .profile-banner {
+        background: linear-gradient(105deg, #d8f4f3, #c9eff0);
+        border-radius: 0 0 16px 16px;
+        padding: 25px 24px 20px;
+        margin: -3.5rem -1rem 16px -1rem;
+    }
+    .profile-banner h2 { color:#193653; margin:0 0 12px 0; font-size:25px; }
+    .profile-banner p { color:#55758d; margin:0; font-size:13px; }
+    .profile-form-wrap { max-width:790px; margin:0 auto; }
+    div[data-testid="stForm"] { border:1px solid #d6e1e5; border-radius:7px; padding:10px; }
+    </style>
+    <div class="profile-banner">
+      <h2>AIVLE School 학습 도우미 👋</h2>
+      <p>먼저 프로필을 설정하면, 단계에 맞는 안내와 챗봇 답변을 보여드려요.</p>
+    </div>
+    <div class="profile-form-wrap">
+    """, unsafe_allow_html=True)
+
+    with st.form("initial_profile_form"):
+        profile_name = st.text_input("이름 (닉네임)", placeholder="이름을 입력해 주세요.")
+        st.markdown("**현재 단계**")
+        profile_stage = st.radio(
+            "현재 단계 선택",
+            ["🌱 예비 에이블러", "🎓 에이블러 (교육생)", "🏅 수료자 (1년)"],
+            horizontal=True,
+            label_visibility="collapsed"
+        )
+        st.markdown("**트랙**")
+        profile_track = st.radio(
+            "트랙 선택", ["DX 컨설턴트 트랙", "AI 개발자 트랙"],
+            horizontal=True, label_visibility="collapsed"
+        )
+        profile_company = st.text_input("희망 기업 (선택)", placeholder="예: KT, 금융권, 공기업")
+        profile_job = st.text_input("희망 직무 (선택)", placeholder="예: DX 컨설턴트, 데이터 분석가")
+        profile_submitted = st.form_submit_button("시작하기 ➜", use_container_width=True, type="primary")
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    if profile_submitted:
+        if not profile_name.strip():
+            st.warning("이름(닉네임)을 입력해 주세요.")
+        else:
+            st.session_state.user_profile = {
+                "name": profile_name.strip(),
+                "stage": profile_stage,
+                "track": profile_track,
+                "company": profile_company.strip(),
+                "job": profile_job.strip(),
+                "desired_job": profile_job.strip(),
+            }
+            st.session_state.profile_completed = True
+            st.session_state.menu = "🏠 홈"
+            st.rerun()
+
+    st.stop()
+
+
+# =========================================================
 # 5. 공통 HTML 함수
 # =========================================================
 
@@ -944,12 +1015,28 @@ def right_panel():
         st.rerun()
 
     st.markdown("**💡 추천 질문**")
-    suggested_questions = [
-        "AIVLE School 학습백서의 주요 내용을 요약해 줘.",
-        "RAG 파이프라인이 어떤 순서로 동작하는지 설명해 줘.",
-        "교육과정은 어떤 단계로 구성되어 있나요?",
-        "미니프로젝트와 빅프로젝트의 차이를 알려줘."
-    ]
+    current_stage = st.session_state.get("user_profile", {}).get("stage", "🎓 에이블러 (교육생)")
+    if current_stage == "🌱 예비 에이블러":
+        suggested_questions = [
+            "KT 에이블스쿨 지원 자격과 선발 절차를 알려줘.",
+            "DX 컨설턴트 트랙에서는 무엇을 배우나요?",
+            "교육 시작 전에 준비하면 좋은 것은 무엇인가요?",
+            "에이블스쿨 교육과정과 프로젝트 일정을 소개해 줘."
+        ]
+    elif current_stage == "🏅 수료자 (1년)":
+        suggested_questions = [
+            "수료 후 취업 준비에 활용할 수 있는 지원 제도를 알려줘.",
+            "DX 컨설턴트 직무에 필요한 역량을 정리해 줘.",
+            "포트폴리오를 보완하는 방법을 추천해 줘.",
+            "기술 면접과 직무 면접 예상 질문을 만들어 줘."
+        ]
+    else:
+        suggested_questions = [
+            "현재 교육 단계에서 꼭 알아야 할 핵심 내용을 정리해 줘.",
+            "이번 교육에서 배우는 내용을 실무 사례와 연결해 설명해 줘.",
+            "미니프로젝트 주제 선정과 진행 방법을 알려줘.",
+            "빅프로젝트를 준비하기 위해 어떤 역량을 쌓아야 하나요?"
+        ]
 
     for idx, suggested in enumerate(suggested_questions):
         if st.button(
@@ -994,34 +1081,55 @@ def right_panel():
 
 def page_home():
 
-    st.markdown("""
-    <div class="page-title">Hello, AIVLE! 👋</div>
-    <div class="page-subtitle">오늘도 새로운 지식을 함께 배워봐요.</div>
-    """, unsafe_allow_html=True)
+    profile = st.session_state.get("user_profile", {})
+    user_name = profile.get("name", "에이블러")
+    current_stage = profile.get("stage", "🎓 에이블러 (교육생)")
+    current_track = profile.get("track", "DX 컨설턴트 트랙")
+
+    stage_guides = {
+        "🌱 예비 에이블러": (
+            "에이블스쿨 시작을 준비하고 있군요!",
+            "지원 및 선발 정보부터 교육과정, 사전 학습까지 차근차근 준비해 보세요.",
+            "🚀 시작 전 준비"
+        ),
+        "🎓 에이블러 (교육생)": (
+            "오늘도 교육과 함께 성장해 봐요!",
+            "강의 복습과 미니프로젝트·빅프로젝트 진행에 필요한 내용을 확인해 보세요.",
+            "📚 교육·프로젝트"
+        ),
+        "🏅 수료자 (1년)": (
+            "수료 이후의 커리어도 함께 준비해요!",
+            "취업 정보와 직무 역량, 포트폴리오 및 면접 준비에 집중해 보세요.",
+            "💼 취업·커리어"
+        )
+    }
+    guide_title, guide_text, guide_label = stage_guides.get(current_stage, stage_guides["🎓 에이블러 (교육생)"])
+
+    st.markdown(
+        f'<div class="page-title">Hello, {escape(user_name)}! 👋</div>'
+        f'<div class="page-subtitle">{escape(current_stage)} · {escape(current_track)}</div>',
+        unsafe_allow_html=True
+    )
 
     c1, c2 = st.columns([1, 1])
 
     with c1:
-        st.markdown("""
+        st.markdown(f"""
         <div class="welcome-card welcome-one">
-            <h3>Welcome back! ✨</h3>
-            <p>
-                AIVLE School 학습 도우미입니다.<br>
-                교육 과정, 강의 내용, 미니프로젝트 등<br>
-                궁금한 내용을 자유롭게 질문해 보세요!
-            </p>
+            <h3>{escape(guide_title)} ✨</h3>
+            <p>{escape(guide_text)}</p>
             <div style="text-align:right;font-size:25px;">💻 💬</div>
         </div>
         """, unsafe_allow_html=True)
 
     with c2:
-        st.markdown("""
+        st.markdown(f"""
         <div class="welcome-card welcome-two">
-            <h3>Learning Guide 📚</h3>
+            <h3>{escape(guide_label)} 📚</h3>
             <p>
-                여러분의 학습을 도와드릴게요.<br>
-                문서 기반 RAG 시스템을 활용하여<br>
-                필요한 정보를 빠르게 찾아보세요.
+                {escape(user_name)}님의 목표에 맞춰 안내할게요.<br>
+                오른쪽 AIVLE Assistant에서 단계별 추천 질문을 확인하고<br>
+                필요한 정보를 바로 물어보세요.
             </p>
             <div style="text-align:right;font-size:25px;">💡 📚</div>
         </div>
