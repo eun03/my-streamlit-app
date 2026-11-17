@@ -1,5 +1,4 @@
 
-
 import streamlit as st
 import calendar
 import io
@@ -197,6 +196,31 @@ section[data-testid="stSidebar"] div.stButton > button[data-testid="stBaseButton
 .logo-sub {
     color: #28b7c0;
     font-size: 12px;
+}
+
+/* 프로필 설정 화면 */
+div[data-testid="stForm"] {
+    background: rgba(255,255,255,0.72);
+    border: 1px solid #dce9ed;
+    border-radius: 16px;
+    padding: 20px 22px;
+    box-shadow: 0 5px 18px rgba(31,82,105,0.06);
+}
+div[data-testid="stForm"] label,
+div[data-testid="stForm"] p {
+    color: #193653 !important;
+    font-weight: 700;
+}
+div[data-testid="stForm"] input {
+    border-radius: 9px;
+}
+div[data-testid="stForm"] button[kind="primary"] {
+    background: #ff4b4b !important;
+    border: 0 !important;
+    color: white !important;
+    font-weight: 800 !important;
+    border-radius: 9px !important;
+    min-height: 42px;
 }
 
 /* 제목 */
@@ -678,6 +702,19 @@ if "calendar_month" not in st.session_state:
 if "menu" not in st.session_state:
     st.session_state.menu = "🏠 홈"
 
+# 최초 접속 시 프로필 설정을 먼저 보여주기 위한 상태
+if "profile_completed" not in st.session_state:
+    st.session_state.profile_completed = False
+
+if "user_profile" not in st.session_state:
+    st.session_state.user_profile = {
+        "name": "",
+        "stage": "에이블러(교육생)",
+        "track": "DX 컨설턴트 트랙",
+        "company": "",
+        "job": "",
+    }
+
 if "uploaded_documents" not in st.session_state:
     st.session_state.uploaded_documents = []
 
@@ -737,7 +774,105 @@ def subject_card(icon, title, description):
 
 
 # =========================================================
-# 6. 왼쪽 사이드바
+# 6. 프로필 설정 및 맞춤 추천 질문
+# =========================================================
+
+def get_recommended_questions():
+    """사용자 단계, 트랙, 희망 기업/직무를 반영한 추천 질문을 반환합니다."""
+    profile = st.session_state.get("user_profile", {})
+    stage = profile.get("stage", "에이블러(교육생)")
+    track = profile.get("track", "DX 컨설턴트 트랙")
+    company = profile.get("company", "").strip()
+    job = profile.get("job", "").strip()
+
+    if stage == "예비 에이블러":
+        stage_question = "KT 에이블스쿨 지원 자격과 선발 절차를 알려주세요."
+        stage_question_2 = "교육 시작 전 미리 준비하면 좋은 기초 역량은 무엇인가요?"
+    elif stage == "수료자(1년)":
+        stage_question = "수료 후 취업 준비 로드맵을 단계별로 알려주세요."
+        stage_question_2 = "프로젝트 경험을 자기소개서와 면접에서 활용하는 방법은?"
+    else:
+        stage_question = "현재 교육 단계에서 우선적으로 복습해야 할 내용은 무엇인가요?"
+        stage_question_2 = "미니프로젝트 결과물을 포트폴리오로 정리하는 방법은?"
+
+    if "AI 개발자" in track:
+        track_question = "AI 개발자에게 필요한 Python·머신러닝·딥러닝 역량은 무엇인가요?"
+        track_question_2 = "AI 개발자 트랙 프로젝트를 기술 면접에서 설명하는 방법은?"
+    else:
+        track_question = "DX 컨설턴트에게 필요한 데이터 분석 및 비즈니스 문제 해결 역량은?"
+        track_question_2 = "데이터 분석 프로젝트를 DX 컨설턴트 직무 성과로 표현하는 방법은?"
+
+    questions = [stage_question, track_question]
+    if company:
+        questions.append(f"{company}의 채용 준비 시 중점적으로 확인해야 할 역량은?")
+    if job:
+        questions.append(f"희망 직무인 {job}에 맞는 포트폴리오 구성 방법은?")
+    questions.extend([stage_question_2, track_question_2])
+    return questions[:5]
+
+
+def page_profile():
+    profile = st.session_state.user_profile
+    st.markdown("""
+    <div class="hero" style="min-height:110px; margin-bottom:18px;">
+        <div>
+            <h1 style="font-size:27px;">AIVLE School 학습 도우미 👋</h1>
+            <p style="margin:8px 0 0; color:#55718a;">먼저 프로필을 설정하면, 단계와 트랙에 맞는 안내와 챗봇 답변을 보여드려요.</p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    left, form_col = st.columns([0.42, 1.58], gap="large")
+    with left:
+        st.markdown("""
+        <div class="right-card" style="text-align:center; padding:30px 18px;">
+            <div style="font-size:55px;">👩🏻‍💻</div>
+            <h3 style="color:#193653;">나에게 맞는 학습 도우미</h3>
+            <p>현재 상황과 목표를 알려주시면<br>맞춤형 학습·취업 정보를 추천해 드립니다.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown("""
+        <div class="info-card" style="margin-top:14px;">
+            <h3>🔒 프로필 정보 안내</h3>
+            <p>입력한 정보는 이 앱의 추천 질문과 화면 안내를 개인화하는 데 사용됩니다.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with form_col:
+        st.markdown('<div class="section-title"><span class="section-number">01.</span> 프로필 설정</div>', unsafe_allow_html=True)
+        with st.form("profile_setup_form"):
+            name = st.text_input("이름 (닉네임)", value=profile.get("name", ""), placeholder="예: 홍길동")
+            stage = st.radio(
+                "현재 단계",
+                ["예비 에이블러", "에이블러(교육생)", "수료자(1년)"],
+                index=["예비 에이블러", "에이블러(교육생)", "수료자(1년)"].index(profile.get("stage", "에이블러(교육생)")),
+                horizontal=True
+            )
+            track = st.radio(
+                "트랙",
+                ["DX 컨설턴트 트랙", "AI 개발자 트랙"],
+                index=0 if "DX" in profile.get("track", "DX") else 1,
+                horizontal=True
+            )
+            company = st.text_input("희망 기업 (선택)", value=profile.get("company", ""), placeholder="예: KT, 금융권, 공기업")
+            job = st.text_input("희망 직무 (선택)", value=profile.get("job", ""), placeholder="예: DX 컨설턴트, 데이터 분석가")
+            submitted = st.form_submit_button("시작하기 →", use_container_width=True, type="primary")
+
+            if submitted:
+                st.session_state.user_profile = {
+                    "name": name.strip(),
+                    "stage": stage,
+                    "track": track,
+                    "company": company.strip(),
+                    "job": job.strip(),
+                }
+                st.session_state.profile_completed = True
+                st.session_state.menu = "🏠 홈"
+                st.rerun()
+
+
+# =========================================================
+# 7. 왼쪽 사이드바
 # =========================================================
 
 menu_items = [
@@ -750,63 +885,63 @@ menu_items = [
     "🕸️ 온톨로지"
 ]
 
-with st.sidebar:
-
-    # AIVLE 로고
-    st.markdown("""
-    <div class="logo-box">
-        <div class="logo-main">◢ AIVLE</div>
-        <div class="logo-sub">AIVLE SCHOOL</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # 라디오 버튼 대신 일반 버튼으로 메뉴 구성
-    for item in menu_items:
-        if st.button(
-            item,
-            key=f"nav_{item}",
-            use_container_width=True,
-            type="primary" if st.session_state.menu == item else "secondary"
-        ):
-            st.session_state.menu = item
-            st.rerun()
-
-    st.markdown("<br><hr>", unsafe_allow_html=True)
-
-    # 바로가기: 페이지 이름을 한글로 표시하고 글자색을 진하게 고정
-    st.markdown("<br><hr>", unsafe_allow_html=True)
-    st.markdown("#### 🔗 바로가기")
-
-    shortcut_links = [
-        ("🎓", "에이블 에듀 LMS", "https://aivle.edu.kt.co.kr"),
-        ("🏫", "에이블스쿨 공식 홈페이지", "https://aivle.kt.co.kr/home/main/indexMain"),
-        ("📸", "에이블스쿨 인스타그램", "https://www.instagram.com/aivlestory?igshid=YmMyMTA2M2Y%3D"),
-        ("💼", "취업지원 플랫폼", "https://aivle10.univjob.co.kr"),
-    ]
-
-    for link_icon, link_label, link_url in shortcut_links:
-        st.markdown(
-            f"""
-            <a class="sidebar-shortcut-link"
-               href="{link_url}" target="_blank" rel="noopener noreferrer">
-                <span class="shortcut-label">
-                    <span class="shortcut-icon">{link_icon}</span>
-                    <span>{link_label}</span>
-                </span>
-                <span class="shortcut-arrow">↗</span>
-            </a>
-            """,
-            unsafe_allow_html=True
-        )
-
-    st.markdown("""
-    <br><br>
-    <div style="font-size:12px; line-height:1.8; color:white;">
-        AIVLE School<br>
-        Learning Assistant
-    </div>
-    """, unsafe_allow_html=True)
-
+if st.session_state.profile_completed:
+    with st.sidebar:
+    
+        # AIVLE 로고
+        st.markdown("""
+        <div class="logo-box">
+            <div class="logo-main">◢ AIVLE</div>
+            <div class="logo-sub">AIVLE SCHOOL</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+        # 라디오 버튼 대신 일반 버튼으로 메뉴 구성
+        for item in menu_items:
+            if st.button(
+                item,
+                key=f"nav_{item}",
+                use_container_width=True,
+                type="primary" if st.session_state.menu == item else "secondary"
+            ):
+                st.session_state.menu = item
+                st.rerun()
+    
+        st.markdown("<br><hr>", unsafe_allow_html=True)
+    
+        # 바로가기: 페이지 이름을 한글로 표시하고 글자색을 진하게 고정
+        st.markdown("<br><hr>", unsafe_allow_html=True)
+        st.markdown("#### 🔗 바로가기")
+    
+        shortcut_links = [
+            ("🎓", "에이블 에듀 LMS", "https://aivle.edu.kt.co.kr"),
+            ("🏫", "에이블스쿨 공식 홈페이지", "https://aivle.kt.co.kr/home/main/indexMain"),
+            ("📸", "에이블스쿨 인스타그램", "https://www.instagram.com/aivlestory?igshid=YmMyMTA2M2Y%3D"),
+            ("💼", "취업지원 플랫폼", "https://aivle10.univjob.co.kr"),
+        ]
+    
+        for link_icon, link_label, link_url in shortcut_links:
+            st.markdown(
+                f"""
+                <a class="sidebar-shortcut-link"
+                   href="{link_url}" target="_blank" rel="noopener noreferrer">
+                    <span class="shortcut-label">
+                        <span class="shortcut-icon">{link_icon}</span>
+                        <span>{link_label}</span>
+                    </span>
+                    <span class="shortcut-arrow">↗</span>
+                </a>
+                """,
+                unsafe_allow_html=True
+            )
+    
+        st.markdown("""
+        <br><br>
+        <div style="font-size:12px; line-height:1.8; color:white;">
+            AIVLE School<br>
+            Learning Assistant
+        </div>
+        """, unsafe_allow_html=True)
 
 # =========================================================
 # 7. 오른쪽 공통 패널
@@ -835,14 +970,18 @@ def right_panel():
 
     <div style="font-size:18px;font-weight:900;
                 color:#193653;margin:20px 0 12px;">
-        💡 추천 질문
+        💡 맞춤 추천 질문
     </div>
 
-    <div class="question-item">KT 에이블스쿨 지원 자격은?</div>
-    <div class="question-item">미니프로젝트는 어떻게 진행되나요?</div>
-    <div class="question-item">교육 과정은 어떻게 구성되나요?</div>
-    <div class="question-item">수료 기준은 무엇인가요?</div>
+    """, unsafe_allow_html=True)
 
+    for question in get_recommended_questions():
+        st.markdown(
+            f'<div class="question-item">{escape(question)}</div>',
+            unsafe_allow_html=True
+        )
+
+    st.markdown("""
     <div class="right-card" style="margin-top:25px;">
         <h3>🕒 Recent Activity</h3>
         <p>최근 대화 기록</p>
@@ -865,9 +1004,9 @@ def right_panel():
 
 def page_home():
 
-    st.markdown("""
-    <div class="page-title">Hello, AIVLE! 👋</div>
-    <div class="page-subtitle">오늘도 새로운 지식을 함께 배워봐요.</div>
+    st.markdown(f"""
+    <div class="page-title">Hello, {escape(st.session_state.user_profile.get("name") or "AIVLE")}! 👋</div>
+    <div class="page-subtitle">{escape(st.session_state.user_profile.get("stage", "에이블러(교육생)"))} · {escape(st.session_state.user_profile.get("track", "DX 컨설턴트 트랙"))}에 맞춘 학습을 시작해 보세요.</div>
     """, unsafe_allow_html=True)
 
     c1, c2 = st.columns([1, 1])
@@ -2625,32 +2764,35 @@ def page_ontology():
 # 15. 최종 화면 구성
 # =========================================================
 
-main_col, side_col = st.columns(
-    [3.2, 1.15],
-    gap="large"
-)
+if not st.session_state.profile_completed:
+    page_profile()
+else:
+    main_col, side_col = st.columns(
+        [3.2, 1.15],
+        gap="large"
+    )
 
-with main_col:
-    menu = st.session_state.menu
+    with main_col:
+        menu = st.session_state.menu
 
-    if menu == "🏠 홈":
-        page_home()
-    elif menu == "👋 소개":
-        page_intro()
-    elif menu == "📚 교육과정":
-        page_education()
-    elif menu == "💼 취업과정":
-        page_career()
-    elif menu == "📁 포트폴리오":
-        page_portfolio()
-    elif menu == "📂 파일 불러오기":
-        page_file_upload()
-    elif menu == "🕸️ 온톨로지":
-        page_ontology()
-    elif menu == "🧠 학습 Q&A":
-        page_chat()
-    else:
-        page_home()
+        if menu == "🏠 홈":
+            page_home()
+        elif menu == "👋 소개":
+            page_intro()
+        elif menu == "📚 교육과정":
+            page_education()
+        elif menu == "💼 취업과정":
+            page_career()
+        elif menu == "📁 포트폴리오":
+            page_portfolio()
+        elif menu == "📂 파일 불러오기":
+            page_file_upload()
+        elif menu == "🕸️ 온톨로지":
+            page_ontology()
+        elif menu == "🧠 학습 Q&A":
+            page_chat()
+        else:
+            page_home()
 
-with side_col:
-    right_panel()
+    with side_col:
+        right_panel()
