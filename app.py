@@ -65,8 +65,12 @@ header[data-testid="stHeader"] {
 /* 사이드바 */
 section[data-testid="stSidebar"] {
     background: linear-gradient(180deg, #55bdc5, #63c6cc);
-    min-width: 210px;
-    max-width: 210px;
+}
+
+/* 사이드바 열림/닫힘은 Streamlit 기본 토글에 맡깁니다.
+   width/min-width를 강제하지 않아 접은 뒤에도 다시 펼칠 수 있습니다. */
+section[data-testid="stSidebar"] > div {
+    width: 100%;
 }
 
 section[data-testid="stSidebar"] * {
@@ -74,6 +78,17 @@ section[data-testid="stSidebar"] * {
 }
 
 /* 사이드바 메뉴 버튼 */
+section[data-testid="stSidebar"] a[data-testid="stLinkButton"] {
+    background: rgba(255,255,255,0.96) !important;
+    color: #193653 !important;
+    border: 1px solid rgba(255,255,255,0.7) !important;
+    border-radius: 10px !important;
+    font-weight: 750 !important;
+}
+section[data-testid="stSidebar"] a[data-testid="stLinkButton"] * {
+    color: #193653 !important;
+}
+
 section[data-testid="stSidebar"] div.stButton > button {
     width: 100%;
     min-height: 43px;
@@ -434,6 +449,21 @@ section[data-testid="stSidebar"] div.stButton > button[data-testid="stBaseButton
     font-size: 11px;
 }
 
+/* 프로필 설정 */
+.profile-panel {
+    background: white;
+    border: 1px solid #e2f0f4;
+    border-radius: 20px;
+    padding: 22px;
+    box-shadow: 0 5px 15px rgba(35,90,110,0.06);
+}
+.profile-summary {
+    background: linear-gradient(110deg,#e0f7f6,#eef5ff);
+    border-radius: 16px;
+    padding: 16px;
+    color: #193653;
+}
+
 /* 홈 환영 카드 */
 .welcome-card {
     border-radius: 20px;
@@ -629,7 +659,21 @@ if "calendar_month" not in st.session_state:
     st.session_state.calendar_month = date.today().month
 
 if "menu" not in st.session_state:
-    st.session_state.menu = "🏠 홈"
+    st.session_state.menu = "👤 프로필 설정"
+
+if "profile_completed" not in st.session_state:
+    st.session_state.profile_completed = False
+
+if "user_profile" not in st.session_state:
+    st.session_state.user_profile = {
+        "status": "예비 에이블러",
+        "company": "",
+        "job": "DX 컨설턴트",
+        "track": "DX 컨설턴트 트랙"
+    }
+
+if not st.session_state.profile_completed:
+    st.session_state.menu = "👤 프로필 설정"
 
 if "uploaded_documents" not in st.session_state:
     st.session_state.uploaded_documents = []
@@ -693,19 +737,18 @@ def subject_card(icon, title, description):
 # 6. 왼쪽 사이드바
 # =========================================================
 
-menu_items = [
-    "🏠 홈",
-    "👋 소개",
-    "📚 교육과정",
-    "💼 취업과정",
-    "📁 포트폴리오",
-    "📂 파일 불러오기",
-    "🕸️ 온톨로지"
+menu_groups = [
+    ("🏠 홈", "🗓️ 캘린더"),
+    ("🤖 챗봇",),
+    ("👋 소개",),
+    ("📚 교육과정",),
+    ("💼 취업과정",),
+    ("📁 포트폴리오",),
+    ("🕸️ 온톨로지",),
+    ("👤 프로필 설정",),
 ]
 
 with st.sidebar:
-
-    # AIVLE 로고
     st.markdown("""
     <div class="logo-box">
         <div class="logo-main">◢ AIVLE</div>
@@ -713,50 +756,33 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    # 라디오 버튼 대신 일반 버튼으로 메뉴 구성
-    for item in menu_items:
-        if st.button(
-            item,
-            key=f"nav_{item}",
-            use_container_width=True,
-            type="primary" if st.session_state.menu == item else "secondary"
-        ):
-            st.session_state.menu = item
-            st.rerun()
+    for group in menu_groups:
+        for item in group:
+            if st.button(
+                item,
+                key=f"nav_{item}",
+                use_container_width=True,
+                type="primary" if st.session_state.menu == item else "secondary"
+            ):
+                st.session_state.menu = item
+                st.rerun()
 
-    st.markdown("<br><hr>", unsafe_allow_html=True)
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown("#### 🔗 바로가기")
+    st.link_button("KT 에이블 에듀 LMS", "https://aivle.edu.kt.co.kr", use_container_width=True)
+    st.link_button("KT 에이블스쿨 공식 홈페이지", "https://aivle.kt.co.kr/home/main/indexMain", use_container_width=True)
+    st.link_button("인스타그램 공식 SNS", "https://www.instagram.com/aivlestory?igshid=YmMyMTA2M2Y%3D", use_container_width=True)
+    st.link_button("취업지원 플랫폼", "https://aivle10.univjob.co.kr", use_container_width=True)
 
-    # 관리자 메뉴는 제거하고 문서 업로드/관리는 유지
-    st.markdown("#### 📄 백서 및 학습 문서 업로드")
-
-    uploaded_file = st.file_uploader(
-        "파일 선택",
-        type=["pdf", "txt", "docx"],
-        help="200MB per file"
-    )
-
-    st.caption("200MB per file · PDF, TXT, DOCX")
-
-    st.markdown("---")
-    st.markdown("#### 📑 등록된 문서 관리")
-
-    st.selectbox(
-        "문서 선택",
-        ["등록된 문서 없음"],
-        label_visibility="collapsed"
-    )
-
-    st.caption("저장된 청크: 0개")
-
-    if st.button("🗑️ 대화 전체 삭제", use_container_width=True):
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("🗑️ 대화 전체 삭제", use_container_width=True, key="clear_all_chat"):
         st.session_state.messages = []
         st.rerun()
 
     st.markdown("""
     <br><br>
     <div style="font-size:12px; line-height:1.8; color:white;">
-        AIVLE School<br>
-        Learning Assistant
+        AIVLE School<br>Learning Assistant
     </div>
     """, unsafe_allow_html=True)
 
@@ -1312,6 +1338,32 @@ def page_career():
     </div>
     """, unsafe_allow_html=True)
 
+    # 프로필 기반 맞춤 취업 정보
+    profile = st.session_state.user_profile
+    desired_job = profile.get("job", "DX 컨설턴트")
+    desired_company = profile.get("company", "")
+    st.markdown(f"""
+    <div class="profile-summary" style="margin-bottom:16px;">
+      <b>🎯 {escape(profile.get('status', '예비 에이블러'))} 맞춤 취업 가이드</b><br>
+      희망 직무: <b>{escape(desired_job)}</b>　|　희망 기업: <b>{escape(desired_company or '미설정')}</b><br>
+      선택한 직무에 필요한 역량과 준비 자료를 우선적으로 확인해 보세요.
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("프로필 수정하기", key="career_edit_profile"):
+        st.session_state.menu = "👤 프로필 설정"
+        st.rerun()
+
+    role_guides = {
+        "DX 컨설턴트": ("데이터 분석 · 비즈니스 이해 · 문제 해결 · 커뮤니케이션", "현업 문제를 데이터로 정의하고 개선 과제를 제안하는 사례"),
+        "AI 개발자": ("Python · 머신러닝/딥러닝 · 모델 평가 · API/서비스 구현", "모델 선택 근거와 성능 지표, 실제 서비스 적용 과정"),
+        "데이터 분석가": ("SQL · Python · 통계 · 시각화 · 인사이트 도출", "분석 결과가 의사결정이나 업무 개선으로 이어진 사례"),
+        "BI 개발자": ("SQL · 데이터 모델링 · ETL · BI 대시보드", "KPI 정의부터 데이터 파이프라인과 대시보드 구현까지"),
+        "IT기획 / PM": ("요구사항 분석 · 일정/리스크 관리 · 문서화 · 협업", "요구사항을 구체화하고 팀을 조율해 결과를 만든 사례"),
+        "정보보안": ("네트워크 · 시스템 · 취약점 분석 · 보안 정책", "취약점 발견부터 위험도 평가와 조치 검증까지")
+    }
+    role_skill, role_portfolio = role_guides.get(desired_job, ("직무 기초 역량 · 문제 해결 · 협업", "문제 정의와 본인 기여도, 결과를 구체적으로 제시한 사례"))
+    st.info(f"**{desired_job} 핵심 역량:** {role_skill}\n\n**포트폴리오 강조점:** {role_portfolio}")
+
     # 01. 취업 준비 로드맵
     section_title(1, "취업 준비 로드맵")
 
@@ -1443,6 +1495,18 @@ def page_career():
         </div>
         """, unsafe_allow_html=True)
 
+    section_title(6, "신입 공채 정보 확인")
+    st.markdown("기업별 채용 일정과 자격 요건은 수시로 변경되므로 공식 채용 페이지에서 최신 공고를 확인하세요.")
+    recruit_cols = st.columns(3)
+    with recruit_cols[0]:
+        st.link_button("KT 채용 홈페이지", "https://recruit.kt.com/", use_container_width=True)
+    with recruit_cols[1]:
+        st.link_button("한국전력공사 채용", "https://recruit.kepco.co.kr/", use_container_width=True)
+    with recruit_cols[2]:
+        st.link_button("AIVLE 취업지원 플랫폼", "https://aivle10.univjob.co.kr", use_container_width=True)
+    with st.expander("신입 공채 준비 체크리스트"):
+        st.markdown("- 채용 직무 및 지원 자격 확인\n- 어학·자격증·교육 이수 조건 확인\n- 자기소개서 문항과 경험 연결\n- 코딩테스트 또는 직무 필기 준비\n- 면접 일정과 제출 서류 확인")
+
     st.markdown("""
     <div class="bottom-banner">
         <div style="display:flex;align-items:center;gap:25px;">
@@ -1487,6 +1551,26 @@ def page_portfolio():
             </h3>
         </div>
         <div class="hero-icon">👩🏻‍💻📚</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    profile = st.session_state.user_profile
+    target_job = profile.get("job", "DX 컨설턴트")
+    target_company = profile.get("company", "")
+    portfolio_focus = {
+        "DX 컨설턴트": "문제 정의, 데이터 기반 인사이트, 비즈니스 개선 효과",
+        "AI 개발자": "모델 선정 근거, 성능 평가 지표, 서비스 구현 및 배포",
+        "데이터 분석가": "데이터 전처리, 탐색적 분석, 시각화와 실행 가능한 제안",
+        "BI 개발자": "데이터 모델링, SQL, 대시보드 및 KPI 설계",
+        "IT기획 / PM": "요구사항 정의, 일정·리스크 관리, 이해관계자 협업",
+        "정보보안": "위협 분석, 취약점 진단, 보안 대책 및 검증 결과",
+        "기타": "문제 해결 과정, 본인 역할, 결과와 배운 점"
+    }
+    st.markdown(f"""
+    <div class="profile-summary" style="margin-bottom:15px;">
+      <b>🎯 {escape(target_job)} 맞춤 포트폴리오 가이드</b><br>
+      희망 기업: <b>{escape(target_company or '미설정')}</b><br>
+      강조할 내용: {escape(portfolio_focus.get(target_job, portfolio_focus['기타']))}
     </div>
     """, unsafe_allow_html=True)
 
@@ -2227,6 +2311,123 @@ def page_chat():
 
 
 # =========================================================
+# 13. 프로필 설정 페이지
+# =========================================================
+
+def page_profile():
+    st.markdown("""
+    <div class="page-title">👤 나의 프로필 설정</div>
+    <div class="page-subtitle">현재 상태와 희망 진로를 설정하면 취업과정·포트폴리오·온톨로지 정보를 맞춤형으로 제공합니다.</div>
+    <div class="hero">
+      <div>
+        <h1>나에게 맞는 AIVLE 여정을 시작해 보세요! ✨</h1>
+        <h3>프로필을 설정하고 개인화된 학습·취업 정보를 확인하세요.</h3>
+        <p>설정한 정보는 이 브라우저 세션에서 맞춤 콘텐츠를 구성하는 데 사용됩니다.</p>
+      </div>
+      <div class="hero-icon">🙋🏻‍♀️🎯</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    profile = st.session_state.user_profile
+    with st.container(border=True):
+        st.markdown("### 기본 정보")
+        with st.form("profile_setup_form"):
+            status = st.radio(
+                "현재 AIVLE School 상태",
+                ["예비 에이블러", "에이블러", "수료자"],
+                horizontal=True,
+                index=["예비 에이블러", "에이블러", "수료자"].index(profile.get("status", "예비 에이블러"))
+            )
+            company = st.text_input(
+                "희망 기업",
+                value=profile.get("company", ""),
+                placeholder="예: 한국전력공사, KT, 국민은행"
+            )
+            job_options = ["DX 컨설턴트", "AI 개발자", "데이터 분석가", "BI 개발자", "IT기획 / PM", "정보보안", "기타"]
+            old_job = profile.get("job", "DX 컨설턴트")
+            job = st.selectbox("희망 직무", job_options, index=job_options.index(old_job) if old_job in job_options else 0)
+            track_options = ["DX 컨설턴트 트랙", "AI 개발자 트랙"]
+            default_track = "AI 개발자 트랙" if job == "AI 개발자" else profile.get("track", "DX 컨설턴트 트랙")
+            track = st.selectbox("관심 교육 트랙", track_options, index=track_options.index(default_track) if default_track in track_options else 0)
+            submitted = st.form_submit_button("프로필 저장하고 시작하기", type="primary", use_container_width=True)
+
+        if submitted:
+            st.session_state.user_profile = {
+                "status": status,
+                "company": company.strip(),
+                "job": job,
+                "track": track
+            }
+            st.session_state.profile_completed = True
+            st.session_state.menu = "🏠 홈"
+            st.success("프로필이 저장되었습니다. 맞춤형 화면으로 이동합니다.")
+            st.rerun()
+
+    if st.session_state.profile_completed:
+        st.markdown("#### 저장된 프로필")
+        st.markdown(
+            f"""<div class="profile-summary"><b>{escape(profile.get("status", ""))}</b><br>
+            희망 기업: {escape(profile.get("company") or "미입력")}<br>
+            희망 직무: {escape(profile.get("job", ""))}<br>
+            관심 트랙: {escape(profile.get("track", ""))}</div>""",
+            unsafe_allow_html=True
+        )
+
+
+# =========================================================
+# 14. 캘린더 페이지
+# =========================================================
+
+def page_calendar():
+    st.markdown('<div class="page-title">🗓️ 학습 캘린더</div><div class="page-subtitle">교육 일정과 개인 학습 계획을 확인하세요.</div>', unsafe_allow_html=True)
+    prev_col, month_col, next_col = st.columns([1, 5, 1])
+    with prev_col:
+        if st.button("‹ 이전 달", key="calendar_prev_page"):
+            st.session_state.calendar_month -= 1
+            if st.session_state.calendar_month < 1:
+                st.session_state.calendar_month = 12
+                st.session_state.calendar_year -= 1
+            st.rerun()
+    with month_col:
+        st.markdown(f"<h2 style='text-align:center;color:#193653'>{st.session_state.calendar_year}년 {st.session_state.calendar_month}월</h2>", unsafe_allow_html=True)
+    with next_col:
+        if st.button("다음 달 ›", key="calendar_next_page"):
+            st.session_state.calendar_month += 1
+            if st.session_state.calendar_month > 12:
+                st.session_state.calendar_month = 1
+                st.session_state.calendar_year += 1
+            st.rerun()
+    cal = calendar.monthcalendar(st.session_state.calendar_year, st.session_state.calendar_month)
+    weekdays = ["일", "월", "화", "수", "목", "금", "토"]
+    html = '<div class="calendar-box"><div class="calendar-grid">'
+    html += ''.join(f'<div class="calendar-head">{d}</div>' for d in weekdays)
+    for week in cal:
+        for day in week:
+            if not day:
+                html += '<div class="calendar-day" style="border:none"></div>'
+            else:
+                today = day == date.today().day and st.session_state.calendar_month == date.today().month and st.session_state.calendar_year == date.today().year
+                html += f'<div class="calendar-day {"today" if today else ""}">{day}</div>'
+    html += '</div></div>'
+    st.markdown(html, unsafe_allow_html=True)
+    st.markdown("### 일정 메모")
+    with st.form("calendar_memo_form"):
+        event_date = st.date_input("일정 날짜", value=date.today())
+        event_title = st.text_input("일정 내용", placeholder="예: 미니프로젝트 발표 준비")
+        add_event = st.form_submit_button("일정 추가", type="primary")
+    if "calendar_events" not in st.session_state:
+        st.session_state.calendar_events = []
+    if add_event and event_title.strip():
+        st.session_state.calendar_events.append({"date": event_date, "title": event_title.strip()})
+        st.success("일정을 추가했습니다.")
+        st.rerun()
+    if st.session_state.get("calendar_events"):
+        st.dataframe(st.session_state.calendar_events, use_container_width=True, hide_index=True)
+    else:
+        st.info("아직 등록된 일정이 없습니다.")
+
+
+# =========================================================
 # 13. 나머지 페이지 임시 화면
 # =========================================================
 
@@ -2386,6 +2587,14 @@ def page_ontology():
     st.markdown("""
     <div class="page-title">🕸️ 온톨로지</div>
     <div class="page-subtitle">Ontology & Knowledge Graph · AIVLE School 지식 관계 탐색</div>
+    """, unsafe_allow_html=True)
+
+    profile = st.session_state.user_profile
+    st.markdown(f"""
+    <div class="profile-summary" style="margin-bottom:14px;">
+      <b>🧭 프로필 기반 지식 탐색</b><br>
+      현재 희망 직무 <b>{escape(profile.get('job', 'DX 컨설턴트'))}</b>와 관심 트랙 <b>{escape(profile.get('track', 'DX 컨설턴트 트랙'))}</b>에 연결된 학습 기술·프로젝트·성과를 중심으로 탐색할 수 있습니다.
+    </div>
     """, unsafe_allow_html=True)
 
     st.markdown("""
@@ -2575,35 +2784,36 @@ def page_ontology():
 
 
 # =========================================================
-# 15. 최종 화면 구성
+# 16. 최종 화면 구성
 # =========================================================
 
-main_col, side_col = st.columns(
-    [3.2, 1.15],
-    gap="large"
-)
+menu = st.session_state.menu
 
-with main_col:
-    menu = st.session_state.menu
-
-    if menu == "🏠 홈":
-        page_home()
-    elif menu == "👋 소개":
-        page_intro()
-    elif menu == "📚 교육과정":
-        page_education()
-    elif menu == "💼 취업과정":
-        page_career()
-    elif menu == "📁 포트폴리오":
-        page_portfolio()
-    elif menu == "📂 파일 불러오기":
-        page_file_upload()
-    elif menu == "🕸️ 온톨로지":
-        page_ontology()
-    elif menu == "🧠 학습 Q&A":
-        page_chat()
-    else:
-        page_home()
-
-with side_col:
-    right_panel()
+# 프로필 설정은 최초 실행 시 가장 먼저 보여주며, 저장 후 홈으로 이동합니다.
+if menu == "👤 프로필 설정":
+    page_profile()
+elif menu == "🗓️ 캘린더":
+    page_calendar()
+elif menu == "🤖 챗봇" or menu == "🧠 학습 Q&A":
+    page_chat()
+else:
+    main_col, side_col = st.columns([3.2, 1.15], gap="large")
+    with main_col:
+        if menu == "🏠 홈":
+            page_home()
+        elif menu == "👋 소개":
+            page_intro()
+        elif menu == "📚 교육과정":
+            page_education()
+        elif menu == "💼 취업과정":
+            page_career()
+        elif menu == "📁 포트폴리오":
+            page_portfolio()
+        elif menu == "📂 파일 불러오기":
+            page_file_upload()
+        elif menu == "🕸️ 온톨로지":
+            page_ontology()
+        else:
+            page_home()
+    with side_col:
+        right_panel()
