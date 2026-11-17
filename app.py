@@ -1,4 +1,5 @@
 
+
 import streamlit as st
 import calendar
 import io
@@ -71,6 +72,52 @@ section[data-testid="stSidebar"] {
 
 section[data-testid="stSidebar"] * {
     color: white;
+}
+
+/* 바로가기 링크: 흰색 카드 위에 진한 글씨가 항상 보이도록 고정 */
+section[data-testid="stSidebar"] a.sidebar-shortcut-link,
+section[data-testid="stSidebar"] a.sidebar-shortcut-link:visited {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 6px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    min-height: 48px !important;
+    padding: 10px 11px !important;
+    margin: 7px 0 !important;
+    border-radius: 11px !important;
+    border: 1px solid rgba(255,255,255,0.85) !important;
+    background: #ffffff !important;
+    color: #173653 !important;
+    -webkit-text-fill-color: #173653 !important;
+    text-decoration: none !important;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    line-height: 1.35 !important;
+    opacity: 1 !important;
+    box-shadow: 0 2px 7px rgba(25,70,90,0.08) !important;
+}
+section[data-testid="stSidebar"] a.sidebar-shortcut-link span {
+    color: #173653 !important;
+    -webkit-text-fill-color: #173653 !important;
+    opacity: 1 !important;
+}
+section[data-testid="stSidebar"] .shortcut-label {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+}
+section[data-testid="stSidebar"] .shortcut-arrow {
+    flex: 0 0 auto !important;
+    color: #159eae !important;
+    -webkit-text-fill-color: #159eae !important;
+}
+section[data-testid="stSidebar"] a.sidebar-shortcut-link:hover {
+    background: #eafafa !important;
+    color: #087f8b !important;
+    -webkit-text-fill-color: #087f8b !important;
 }
 
 /* 사이드바 메뉴 버튼 */
@@ -726,46 +773,31 @@ with st.sidebar:
 
     st.markdown("<br><hr>", unsafe_allow_html=True)
 
-    # 바로가기: 관리자 및 문서 업로드/등록 관리 영역을 외부 서비스 링크로 대체
+    # 바로가기: 페이지 이름을 한글로 표시하고 글자색을 진하게 고정
     st.markdown("<br><hr>", unsafe_allow_html=True)
     st.markdown("#### 🔗 바로가기")
 
     shortcut_links = [
-        ("🎓 KT 에이블 에듀 LMS", "https://aivle.edu.kt.co.kr"),
-        ("🏫 KT 에이블스쿨 공식 홈페이지", "https://aivle.kt.co.kr/home/main/indexMain"),
-        ("📸 SNS 인스타그램", "https://www.instagram.com/aivlestory?igshid=YmMyMTA2M2Y%3D"),
-        ("💼 취업지원 플랫폼", "https://aivle10.univjob.co.kr"),
+        ("🎓", "에이블 에듀 LMS", "https://aivle.edu.kt.co.kr"),
+        ("🏫", "에이블스쿨 공식 홈페이지", "https://aivle.kt.co.kr/home/main/indexMain"),
+        ("📸", "에이블스쿨 인스타그램", "https://www.instagram.com/aivlestory?igshid=YmMyMTA2M2Y%3D"),
+        ("💼", "취업지원 플랫폼", "https://aivle10.univjob.co.kr"),
     ]
 
-    for link_label, link_url in shortcut_links:
+    for link_icon, link_label, link_url in shortcut_links:
         st.markdown(
             f"""
-            <a href="{link_url}" target="_blank" rel="noopener noreferrer"
-               style="
-                   display:block;
-                   width:100%;
-                   box-sizing:border-box;
-                   padding:11px 12px;
-                   margin:7px 0;
-                   border-radius:11px;
-                   background:rgba(255,255,255,0.96);
-                   color:#193653 !important;
-                   text-decoration:none !important;
-                   font-size:13px;
-                   font-weight:800;
-                   text-align:left;
-                   border:1px solid rgba(255,255,255,0.75);
-                   box-shadow:0 2px 7px rgba(25,70,90,0.08);
-               ">
-                {link_label} <span style="float:right;color:#159eae;">↗</span>
+            <a class="sidebar-shortcut-link"
+               href="{link_url}" target="_blank" rel="noopener noreferrer">
+                <span class="shortcut-label">
+                    <span class="shortcut-icon">{link_icon}</span>
+                    <span>{link_label}</span>
+                </span>
+                <span class="shortcut-arrow">↗</span>
             </a>
             """,
             unsafe_allow_html=True
         )
-
-    if st.button("🗑️ 대화 전체 삭제", use_container_width=True):
-        st.session_state.messages = []
-        st.rerun()
 
     st.markdown("""
     <br><br>
