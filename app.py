@@ -1,6 +1,9 @@
 
 import streamlit as st
 import calendar
+import io
+import os
+import uuid
 from datetime import date, datetime
 from html import escape
 
@@ -9,6 +12,8 @@ from langchain_chroma import Chroma
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from operator import itemgetter
 
 
@@ -579,6 +584,12 @@ if "calendar_month" not in st.session_state:
 
 if "menu" not in st.session_state:
     st.session_state.menu = "🏠 홈"
+
+if "uploaded_documents" not in st.session_state:
+    st.session_state.uploaded_documents = []
+
+if "document_preview" not in st.session_state:
+    st.session_state.document_preview = None
 
 
 # =========================================================
@@ -1729,8 +1740,375 @@ def page_portfolio():
     """, unsafe_allow_html=True)
 
 
+
 # =========================================================
-# 11. 학습 Q&A 페이지
+# 11. 파일 불러오기 페이지
+# =========================================================
+
+def extract_document_text(uploaded_file):
+    """업로드한 PDF/TXT/DOCX/PPT/PPTX 파일에서 텍스트를 추출합니다."""
+    file_name = uploaded_file.name
+    extension = os.path.splitext(file_name)[1].lower()
+    file_bytes = uploaded_file.getvalue()
+
+    if extension == ".pdf":
+        from pypdf import PdfReader
+        reader = PdfReader(io.BytesIO(file_bytes))
+        pages = []
+        for page_number, page in enumerate(reader.pages, start=1):
+            page_text = page.extract_text() or ""
+            if page_text.strip():
+                pages.append(f"[{page_number}페이지]\n{page_text}")
+        return "\n\n".join(pages)
+
+    if extension == ".txt":
+        try:
+            return file_bytes.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            return file_bytes.decode("cp949", errors="replace")
+
+    if extension == ".docx":
+        from docx import Document as DocxDocument
+        document = DocxDocument(io.BytesIO(file_bytes))
+        return "\n".join(p.text for p in document.paragraphs if p.text.strip())
+
+    if extension in [".pptx", ".ppt"]:
+        from pptx import Presentation
+        presentation = Presentation(io.BytesIO(file_bytes))
+        slide_texts = []
+        for slide_number, slide in enumerate(presentation.slides, start=1):
+            texts = []
+            for shape in slide.shapes:
+                if hasattr(shape, "text") and shape.text.strip():
+                    texts.append(shape.text.strip())
+            if texts:
+                slide_texts.append(
+                    f"[슬라이드 {slide_number}]\n" + "\n".join(texts)
+                )
+        return "\n\n".join(slide_texts)
+
+    raise ValueError("지원하지 않는 파일 형식입니다.")
+
+
+def add_document_to_vectorstore(uploaded_file, category, description):
+    """문서를 청크로 분할하고 ChromaDB에 저장합니다."""
+    text = extract_document_text(uploaded_file)
+
+    if not text or not text.strip():
+        raise ValueError(
+            "문서에서 텍스트를 추출하지 못했습니다. "
+            "스캔된 PDF라면 OCR 처리가 필요할 수 있습니다."
+        )
+
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=150,
+        separators=["\n\n", "\n", ". ", " ", ""]
+    )
+
+    base_document = Document(
+        page_content=text,
+        metadata={
+            "source": uploaded_file.name,
+            "category": category,
+            "description": description or ""
+        }
+    )
+    chunks = splitter.split_documents([base_document])
+
+    ids = [str(uuid.uuid4()) for _ in chunks]
+
+    vectorstore = Chroma(
+        collection_name=COLLECTION,
+        embedding_function=OpenAIEmbeddings(
+            model="text-embedding-3-small"
+        ),
+        persist_directory=CHROMA_DIR
+    )
+    vectorstore.add_documents(chunks, ids=ids)
+
+    return {
+        "name": uploaded_file.name,
+        "category": category,
+        "description": description,
+        "size": len(uploaded_file.getvalue()),
+        "uploaded_at": datetime.now().strftime("%Y.%m.%d %H:%M"),
+        "status": "완료",
+        "chunk_count": len(chunks),
+        "ids": ids,
+        "preview": text[:5000]
+    }
+
+
+def page_file_upload():
+
+    st.markdown("""
+    <div class="page-title">📂 파일 불러오기</div>
+    <div class="page-subtitle">Document Upload · 나만의 학습 자료를 등록하고 AI와 대화해 보세요.</div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="hero" style="min-height:140px;">
+        <div>
+            <h1>학습 자료를 업로드하고, <span style="color:#159eae;">AI와 대화해 보세요!</span></h1>
+            <p>
+                AIVLE School 백서, 교안, 프로젝트 자료 등<br>
+                나만의 문서를 업로드하여 RAG 기반으로 질문하고 답변을 받을 수 있습니다.
+            </p>
+        </div>
+        <div class="hero-icon">📄⬆️</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    feature_cols = st.columns(4, gap="small")
+    feature_items = [
+        ("📤", "문서 업로드", "PDF, PPT, DOCX 지원"),
+        ("📚", "자동 처리", "문서 분할 및 임베딩"),
+        ("💬", "AI 기반 질의응답", "업로드한 문서로 답변"),
+        ("📑", "지식 관리", "등록 문서 확인 및 삭제")
+    ]
+
+    for col, (icon, title, desc) in zip(feature_cols, feature_items):
+        with col:
+            st.markdown(f"""
+            <div class="info-card" style="padding:15px 8px; min-height:105px;">
+                <div class="card-icon">{icon}</div>
+                <h3 style="text-align:center; font-size:15px;">{title}</h3>
+                <p style="text-align:center;">{desc}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+    section_title(1, "문서 업로드")
+
+    upload_col, setting_col = st.columns([1.2, 0.9], gap="medium")
+
+    with upload_col:
+        st.markdown("""
+        <div class="info-card" style="min-height:245px;">
+            <div style="text-align:center; padding:8px 0 2px;">
+                <div style="font-size:48px;">☁️</div>
+                <h3>파일을 선택하여 업로드하세요</h3>
+                <p>PDF, PPTX, DOCX, TXT 파일을 지원합니다.</p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        uploaded_file = st.file_uploader(
+            "파일 선택",
+            type=["pdf", "pptx", "docx", "txt"],
+            key="main_document_uploader",
+            help="파일당 최대 200MB를 권장합니다."
+        )
+
+        st.caption("지원 형식: PDF · PPTX · DOCX · TXT  |  파일당 최대 200MB")
+
+    with setting_col:
+        st.markdown("""
+        <div class="info-card" style="min-height:245px;">
+            <h3>⚙️ 업로드 설정</h3>
+        """, unsafe_allow_html=True)
+
+        category = st.selectbox(
+            "📤 문서 카테고리",
+            ["교육 자료", "프로젝트 자료", "취업 자료", "포트폴리오", "기타"],
+            key="document_category"
+        )
+
+        description = st.text_area(
+            "🗂️ 문서 설명 (선택)",
+            placeholder="문서 내용을 간단히 입력하세요.\n(예: DX 교안, 미니프로젝트 자료 등)",
+            height=95,
+            key="document_description"
+        )
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        if st.button(
+            "⬆️ 업로드 및 처리",
+            type="primary",
+            use_container_width=True,
+            key="process_uploaded_document"
+        ):
+            if uploaded_file is None:
+                st.warning("먼저 업로드할 파일을 선택해 주세요.")
+            elif any(
+                item["name"] == uploaded_file.name
+                for item in st.session_state.uploaded_documents
+            ):
+                st.warning("이미 등록된 파일명입니다. 기존 문서를 삭제한 후 다시 등록해 주세요.")
+            else:
+                try:
+                    with st.spinner("문서를 읽고 청크 분할 및 임베딩을 진행하고 있습니다..."):
+                        saved_doc = add_document_to_vectorstore(
+                            uploaded_file,
+                            category,
+                            description
+                        )
+                        st.session_state.uploaded_documents.append(saved_doc)
+
+                    st.success(
+                        f"'{uploaded_file.name}' 업로드 및 처리가 완료되었습니다. "
+                        f"({saved_doc['chunk_count']}개 청크)"
+                    )
+                    st.rerun()
+
+                except Exception as error:
+                    st.error("문서 처리 중 오류가 발생했습니다.")
+                    st.caption(str(error))
+
+    section_title(2, "등록된 문서 관리")
+
+    documents = st.session_state.uploaded_documents
+
+    filter_col, count_col, refresh_col = st.columns([2.2, 1, 0.45])
+
+    with filter_col:
+        search_name = st.text_input(
+            "문서 검색",
+            placeholder="🔍 문서명을 검색하세요.",
+            label_visibility="collapsed",
+            key="document_search"
+        )
+
+    with count_col:
+        category_filter = st.selectbox(
+            "카테고리",
+            ["전체", "교육 자료", "프로젝트 자료", "취업 자료", "포트폴리오", "기타"],
+            label_visibility="collapsed",
+            key="document_filter"
+        )
+
+    with refresh_col:
+        if st.button("🔄", help="목록 새로고침", use_container_width=True):
+            st.rerun()
+
+    filtered_docs = [
+        doc for doc in documents
+        if (search_name.lower() in doc["name"].lower())
+        and (category_filter == "전체" or doc["category"] == category_filter)
+    ]
+
+    st.markdown("""
+    <div style="
+        display:grid;
+        grid-template-columns: 2.4fr 1fr 1.2fr 0.8fr 0.8fr 1fr;
+        gap:8px;
+        background:#d9f2f3;
+        border-radius:10px;
+        padding:12px;
+        color:#193653;
+        font-weight:800;
+        font-size:13px;">
+        <div>파일명</div><div>카테고리</div><div>업로드일</div>
+        <div>크기</div><div>처리 상태</div><div>작업</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if not filtered_docs:
+        st.markdown("""
+        <div class="info-card" style="text-align:center; margin-top:8px;">
+            <div style="font-size:32px;">📂</div>
+            <h3>등록된 문서가 없습니다.</h3>
+            <p>위 영역에서 학습 자료를 업로드해 주세요.</p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        for index, doc in enumerate(filtered_docs):
+            row_cols = st.columns([2.4, 1, 1.2, 0.8, 0.8, 1], gap="small")
+
+            with row_cols[0]:
+                st.markdown(f"📄 **{doc['name']}**")
+
+            with row_cols[1]:
+                st.markdown(f"`{doc['category']}`")
+
+            with row_cols[2]:
+                st.caption(doc["uploaded_at"])
+
+            with row_cols[3]:
+                size_mb = doc["size"] / (1024 * 1024)
+                st.caption(f"{size_mb:.1f} MB")
+
+            with row_cols[4]:
+                st.markdown("<span style='color:#16a36a;font-weight:800;'>🟢 완료</span>", unsafe_allow_html=True)
+                st.caption(f"{doc['chunk_count']} chunks")
+
+            with row_cols[5]:
+                action_cols = st.columns(3, gap="small")
+
+                with action_cols[0]:
+                    if st.button("👁️", key=f"preview_doc_{index}", help="문서 미리보기"):
+                        st.session_state.document_preview = doc["name"]
+
+                with action_cols[1]:
+                    if st.button("💬", key=f"ask_doc_{index}", help="이 문서에 대해 질문하기"):
+                        st.session_state.menu = "🧠 학습 Q&A"
+                        st.session_state.document_question_hint = (
+                            f"'{doc['name']}' 문서의 주요 내용을 요약해 주세요."
+                        )
+                        st.rerun()
+
+                with action_cols[2]:
+                    if st.button("🗑️", key=f"delete_doc_{index}", help="문서 삭제"):
+                        try:
+                            vectorstore = Chroma(
+                                collection_name=COLLECTION,
+                                embedding_function=OpenAIEmbeddings(
+                                    model="text-embedding-3-small"
+                                ),
+                                persist_directory=CHROMA_DIR
+                            )
+                            if doc.get("ids"):
+                                vectorstore.delete(ids=doc["ids"])
+
+                            st.session_state.uploaded_documents = [
+                                item for item in st.session_state.uploaded_documents
+                                if item["name"] != doc["name"]
+                            ]
+
+                            if st.session_state.document_preview == doc["name"]:
+                                st.session_state.document_preview = None
+
+                            st.success(f"'{doc['name']}' 문서를 삭제했습니다.")
+                            st.rerun()
+
+                        except Exception as error:
+                            st.error("문서 삭제 중 오류가 발생했습니다.")
+                            st.caption(str(error))
+
+    if st.session_state.document_preview:
+        selected_doc = next(
+            (
+                item for item in st.session_state.uploaded_documents
+                if item["name"] == st.session_state.document_preview
+            ),
+            None
+        )
+
+        if selected_doc:
+            with st.expander(
+                f"📖 문서 미리보기: {selected_doc['name']}",
+                expanded=True
+            ):
+                st.caption(
+                    f"카테고리: {selected_doc['category']} · "
+                    f"업로드일: {selected_doc['uploaded_at']}"
+                )
+                if selected_doc.get("description"):
+                    st.write(selected_doc["description"])
+                st.text(selected_doc["preview"])
+                if st.button("미리보기 닫기", key="close_document_preview"):
+                    st.session_state.document_preview = None
+                    st.rerun()
+
+    st.caption(
+        f"현재 세션에 등록된 문서: {len(documents)}개 · "
+        f"저장된 청크: {sum(doc['chunk_count'] for doc in documents)}개"
+    )
+
+
+# =========================================================
+# 12. 학습 Q&A 페이지
 # =========================================================
 
 def page_chat():
@@ -1797,7 +2175,7 @@ def page_chat():
 
 
 # =========================================================
-# 12. 나머지 페이지 임시 화면
+# 13. 나머지 페이지 임시 화면
 # =========================================================
 
 def page_placeholder(title, description, icon):
@@ -1821,7 +2199,7 @@ def page_placeholder(title, description, icon):
 
 
 # =========================================================
-# 13. 최종 화면 구성
+# 14. 최종 화면 구성
 # =========================================================
 
 main_col, side_col = st.columns(
@@ -1849,9 +2227,7 @@ with main_col:
         page_portfolio()
 
     elif menu == "📂 파일 불러오기":
-        page_placeholder(
-            "파일 불러오기", "학습 자료 업로드 및 관리", "📂"
-        )
+        page_file_upload()
 
     elif menu == "🕸️ 온톨로지":
         page_placeholder(
