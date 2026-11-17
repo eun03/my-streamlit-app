@@ -591,6 +591,12 @@ if "uploaded_documents" not in st.session_state:
 if "document_preview" not in st.session_state:
     st.session_state.document_preview = None
 
+if "ontology_tab" not in st.session_state:
+    st.session_state.ontology_tab = "지식 그래프"
+
+if "ontology_query_result" not in st.session_state:
+    st.session_state.ontology_query_result = None
+
 
 # =========================================================
 # 5. 공통 HTML 함수
@@ -2199,7 +2205,331 @@ def page_placeholder(title, description, icon):
 
 
 # =========================================================
-# 14. 최종 화면 구성
+
+# =========================================================
+# 14. 온톨로지 페이지
+# =========================================================
+
+ONTOLOGY_CLASSES = [
+    ("AIVLESchool", "AIVLE School", "교육 기관"),
+    ("Curriculum", "교육과정", "교육 트랙 및 학습 단계"),
+    ("Job", "직무", "AI 개발자 · DX 컨설턴트"),
+    ("Project", "프로젝트", "미니 프로젝트 · 빅 프로젝트"),
+    ("Skill", "학습기술", "Python · SQL · 데이터 분석 등"),
+    ("Outcome", "성과", "포트폴리오 · 취업 연계"),
+    ("Document", "자료", "백서 · 교안 · 프로젝트 문서"),
+]
+
+ONTOLOGY_PROPERTIES = [
+    ("hasCurriculum", "교육 기관은 교육과정을 운영한다"),
+    ("hasJob", "교육과정은 직무와 연결된다"),
+    ("hasProject", "교육과정은 프로젝트를 포함한다"),
+    ("hasSkill", "프로젝트는 학습 기술을 활용한다"),
+    ("hasOutcome", "프로젝트는 성과로 이어진다"),
+    ("hasDocument", "교육 지식은 문서 자료로 뒷받침된다"),
+]
+
+ONTOLOGY_TRIPLES = [
+    ("AIVLE School", "hasCurriculum", "교육과정"),
+    ("AIVLE School", "hasJob", "직무"),
+    ("AIVLE School", "hasProject", "프로젝트"),
+    ("교육과정", "hasSkill", "기초 역량"),
+    ("교육과정", "hasSkill", "AI-DX 심화"),
+    ("교육과정", "hasProject", "미니 프로젝트"),
+    ("교육과정", "hasProject", "빅 프로젝트"),
+    ("직무", "hasSkill", "Python"),
+    ("직무", "hasSkill", "데이터 분석"),
+    ("직무", "hasSkill", "생성형 AI"),
+    ("프로젝트", "hasSkill", "SQL"),
+    ("프로젝트", "hasSkill", "시각화"),
+    ("프로젝트", "hasOutcome", "포트폴리오"),
+    ("프로젝트", "hasOutcome", "취업 연계"),
+    ("교육과정", "hasDocument", "AIVLE School 백서"),
+    ("프로젝트", "hasDocument", "미니프로젝트 교안"),
+]
+
+def build_ontology_graph(show_classes=True, show_properties=True):
+    """온톨로지 관계를 Graphviz DOT 그래프로 구성합니다."""
+    nodes = [
+        ('aivle', 'AIVLE\\nSchool', '#20b7b5', 'white'),
+        ('curriculum', '교육과정', '#8b79e8', 'white'),
+        ('job', '직무', '#38c9b8', 'white'),
+        ('project', '프로젝트', '#ffc94f', '#173653'),
+        ('skill', '학습기술', '#65aaf4', 'white'),
+        ('outcome', '성과', '#ec8ab8', 'white'),
+        ('document', '자료', '#8ac8dc', '#173653'),
+    ]
+
+    dot = [
+        'digraph AIVLE {',
+        'graph [rankdir=LR, bgcolor="transparent", pad="0.25", nodesep="0.55", ranksep="0.8"];',
+        'node [shape=ellipse, style="filled", fontname="Malgun Gothic", fontsize=13, penwidth=1.5, color="#ffffff", margin="0.22,0.14"];',
+        'edge [fontname="Malgun Gothic", fontsize=10, color="#8296b8", fontcolor="#425b78", arrowsize=0.8, penwidth=1.4];'
+    ]
+
+    if show_classes:
+        for node_id, label, fill, font in nodes:
+            dot.append(f'{node_id} [label="{label}", fillcolor="{fill}", fontcolor="{font}"];')
+    else:
+        dot.append('aivle [label="AIVLE\\nSchool", fillcolor="#20b7b5", fontcolor="white"];')
+
+    if show_classes and show_properties:
+        edges = [
+            ('aivle', 'curriculum', 'hasCurriculum'),
+            ('aivle', 'job', 'hasJob'),
+            ('aivle', 'project', 'hasProject'),
+            ('curriculum', 'skill', 'hasSkill'),
+            ('curriculum', 'project', 'hasProject'),
+            ('job', 'skill', 'hasSkill'),
+            ('project', 'skill', 'usesSkill'),
+            ('project', 'outcome', 'hasOutcome'),
+            ('curriculum', 'document', 'hasDocument'),
+        ]
+    elif show_classes:
+        edges = [
+            ('aivle', 'curriculum', ''),
+            ('aivle', 'job', ''),
+            ('aivle', 'project', ''),
+            ('curriculum', 'skill', ''),
+            ('curriculum', 'project', ''),
+            ('job', 'skill', ''),
+            ('project', 'skill', ''),
+            ('project', 'outcome', ''),
+            ('curriculum', 'document', ''),
+        ]
+    else:
+        edges = []
+
+    for source, target, label in edges:
+        dot.append(f'{source} -> {target} [label="{label}"];')
+
+    dot.append('}')
+    return "\n".join(dot)
+
+
+def run_ontology_sample_query(query):
+    """화면 예시 질의를 AIVLE 샘플 트리플 데이터에 적용합니다."""
+    q = (query or "").lower()
+
+    if "project" in q and "skill" in q:
+        rows = [
+            {"project": "VOC 분석 서비스", "skill": "Python, 데이터 분석, RAG"},
+            {"project": "주정차 데이터 분석", "skill": "Python, SQL, 시각화"},
+        ]
+    elif "curriculum" in q or "교육과정" in q:
+        rows = [
+            {"subject": "AIVLE School", "relation": "hasCurriculum", "object": "교육과정"},
+            {"subject": "교육과정", "relation": "hasProject", "object": "미니 프로젝트"},
+            {"subject": "교육과정", "relation": "hasProject", "object": "빅 프로젝트"},
+        ]
+    elif "job" in q or "직무" in q:
+        rows = [
+            {"직무": "DX 컨설턴트", "관련 기술": "데이터 분석, SQL, 생성형 AI"},
+            {"직무": "AI 개발자", "관련 기술": "Python, 머신러닝, 딥러닝"},
+        ]
+    else:
+        rows = [
+            {"subject": s, "predicate": p, "object": o}
+            for s, p, o in ONTOLOGY_TRIPLES
+        ]
+
+    return rows
+
+
+def page_ontology():
+    st.markdown("""
+    <div class="page-title">🕸️ 온톨로지</div>
+    <div class="page-subtitle">Ontology & Knowledge Graph · AIVLE School 지식 관계 탐색</div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="hero" style="min-height:140px;">
+        <div>
+            <h1>AIVLE School 지식 구조를 한눈에!</h1>
+            <h3 style="color:#159eae;">교육과정, 직무, 프로젝트의 관계를 연결합니다.</h3>
+            <p>
+                교육과정, 직무, 프로젝트 등 주요 개념의 관계를<br>
+                온톨로지(지식 그래프)로 시각화하고 탐색할 수 있습니다.
+            </p>
+        </div>
+        <div class="hero-icon">🕸️💻</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 상단 탭 버튼
+    tab_names = ["지식 그래프", "클래스(개념)", "속성(Property)", "SPARQL 질의", "관리"]
+    tab_icons = ["📊", "📁", "🔗", "📄", "⚙️"]
+    tab_cols = st.columns(5, gap="small")
+
+    for col, name, icon in zip(tab_cols, tab_names, tab_icons):
+        with col:
+            if st.button(
+                f"{icon} {name}",
+                key=f"ontology_tab_{name}",
+                use_container_width=True,
+                type="primary" if st.session_state.ontology_tab == name else "secondary"
+            ):
+                st.session_state.ontology_tab = name
+                st.rerun()
+
+    active_tab = st.session_state.ontology_tab
+
+    if active_tab == "지식 그래프":
+        section_title(1, "지식 그래프 시각화")
+        graph_col, info_col = st.columns([2.15, 0.85], gap="medium")
+
+        with graph_col:
+            with st.container(border=True):
+                filter_cols = st.columns([1, 1, 1.5])
+                with filter_cols[0]:
+                    show_classes = st.checkbox("개념(클래스)", value=True, key="onto_show_classes")
+                with filter_cols[1]:
+                    show_properties = st.checkbox("관계(속성)", value=True, key="onto_show_properties")
+                with filter_cols[2]:
+                    st.caption("노드를 선택하는 대신 오른쪽 목록에서 개념을 탐색할 수 있습니다.")
+
+                try:
+                    st.graphviz_chart(
+                        build_ontology_graph(show_classes, show_properties),
+                        use_container_width=True
+                    )
+                except Exception:
+                    st.warning("그래프를 표시할 수 없습니다. 아래 관계 목록을 확인해 주세요.")
+                    st.dataframe(
+                        [{"주체": s, "관계": p, "대상": o} for s, p, o in ONTOLOGY_TRIPLES],
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+        with info_col:
+            with st.container(border=True):
+                st.markdown("#### 🧩 온톨로지 정보")
+                class_tab, property_tab = st.tabs(["클래스 (7)", "속성 (6)"])
+                with class_tab:
+                    for _, label, description in ONTOLOGY_CLASSES:
+                        st.markdown(f"🔹 **{label}**")
+                        st.caption(description)
+                with property_tab:
+                    for prop, description in ONTOLOGY_PROPERTIES:
+                        st.markdown(f"🔗 **{prop}**")
+                        st.caption(description)
+
+        lower_left, lower_right = st.columns([1.2, 0.9], gap="medium")
+        with lower_left:
+            section_title(2, "관계 데이터 미리보기")
+            st.dataframe(
+                [{"주체": s, "관계": p, "대상": o} for s, p, o in ONTOLOGY_TRIPLES],
+                use_container_width=True,
+                hide_index=True
+            )
+        with lower_right:
+            section_title(3, "예시 질의")
+            examples = [
+                "DX 컨설턴트에게 필요한 핵심 역량은?",
+                "미니프로젝트 주제와 사용 기술은?",
+                "교육과정 간의 관계를 알려줘.",
+                "특정 프로젝트에 사용된 기술은?"
+            ]
+            for i, example in enumerate(examples):
+                if st.button(f"🔎 {example}", key=f"onto_example_{i}", use_container_width=True):
+                    st.session_state.ontology_tab = "SPARQL 질의"
+                    st.session_state.ontology_query_text = (
+                        "SELECT ?project ?skill WHERE { ?project a ex:Project ; ex:useSkill ?skill . }"
+                        if i == 1 or i == 3 else
+                        "SELECT ?subject ?relation ?object WHERE { ?subject ?relation ?object . }"
+                    )
+                    st.rerun()
+
+    elif active_tab == "클래스(개념)":
+        section_title(1, "온톨로지 클래스")
+        st.markdown("AIVLE School의 주요 개념을 유형별로 정리했습니다.")
+        cols = st.columns(3, gap="medium")
+        for i, (class_id, label, description) in enumerate(ONTOLOGY_CLASSES):
+            with cols[i % 3]:
+                with st.container(border=True):
+                    st.markdown(f"### 🧊 {label}")
+                    st.caption(f"클래스 ID: `{class_id}`")
+                    st.write(description)
+                    related = [t for t in ONTOLOGY_TRIPLES if t[0] == label or t[2] == label]
+                    st.caption(f"연결된 관계 데이터: {len(related)}건")
+
+    elif active_tab == "속성(Property)":
+        section_title(1, "관계 속성")
+        st.markdown("개념과 개념 사이의 연결 의미를 정의합니다.")
+        st.dataframe(
+            [{"속성": prop, "설명": description} for prop, description in ONTOLOGY_PROPERTIES],
+            use_container_width=True,
+            hide_index=True
+        )
+        section_title(2, "관계 트리플")
+        st.dataframe(
+            [{"주체(Subject)": s, "속성(Predicate)": p, "대상(Object)": o}
+             for s, p, o in ONTOLOGY_TRIPLES],
+            use_container_width=True,
+            hide_index=True
+        )
+
+    elif active_tab == "SPARQL 질의":
+        section_title(1, "SPARQL 질의로 지식 탐색하기")
+        default_query = st.session_state.get(
+            "ontology_query_text",
+            "SELECT ?project ?skill WHERE {\\n  ?project a ex:Project ; ex:useSkill ?skill .\\n}"
+        )
+        query = st.text_area(
+            "SPARQL 예시 질의",
+            value=default_query,
+            height=125,
+            key="ontology_query_editor"
+        )
+        run_col, help_col = st.columns([1, 3])
+        with run_col:
+            run_query = st.button("▶ 실행", type="primary", use_container_width=True)
+        with help_col:
+            st.caption("현재 데모는 AIVLE 샘플 지식 데이터에 대한 예시 질의를 제공합니다.")
+
+        if run_query:
+            st.session_state.ontology_query_result = run_ontology_sample_query(query)
+
+        if st.session_state.ontology_query_result is not None:
+            result = st.session_state.ontology_query_result
+            section_title(2, f"질의 결과 ({len(result)}건)")
+            st.dataframe(result, use_container_width=True, hide_index=True)
+
+        with st.expander("사용 가능한 예시 질의"):
+            st.code(
+                "SELECT ?project ?skill WHERE {\\n"
+                "  ?project a ex:Project ; ex:useSkill ?skill .\\n"
+                "}\\n\\n"
+                "# 교육과정 관계 조회 예시\\n"
+                "SELECT ?subject ?relation ?object WHERE {\\n"
+                "  ?subject ?relation ?object .\\n"
+                "}",
+                language="sparql"
+            )
+
+    elif active_tab == "관리":
+        section_title(1, "온톨로지 관리")
+        st.info("현재 화면은 예시 지식 그래프 데이터로 구성되어 있습니다. 실제 운영 데이터와 연결하기 전 개념 및 관계를 검토하는 관리 화면입니다.")
+        st.metric("클래스 수", len(ONTOLOGY_CLASSES))
+        st.metric("속성 수", len(ONTOLOGY_PROPERTIES))
+        st.metric("관계 데이터 수", len(ONTOLOGY_TRIPLES))
+        section_title(2, "등록된 개념")
+        st.dataframe(
+            [{"클래스 ID": cid, "개념": label, "설명": desc}
+             for cid, label, desc in ONTOLOGY_CLASSES],
+            use_container_width=True,
+            hide_index=True
+        )
+        section_title(3, "등록된 관계")
+        st.dataframe(
+            [{"주체": s, "관계": p, "대상": o} for s, p, o in ONTOLOGY_TRIPLES],
+            use_container_width=True,
+            hide_index=True
+        )
+
+
+# =========================================================
+# 15. 최종 화면 구성
 # =========================================================
 
 main_col, side_col = st.columns(
@@ -2208,31 +2538,26 @@ main_col, side_col = st.columns(
 )
 
 with main_col:
-
     menu = st.session_state.menu
 
     if menu == "🏠 홈":
         page_home()
-
     elif menu == "👋 소개":
         page_intro()
-
     elif menu == "📚 교육과정":
         page_education()
-
     elif menu == "💼 취업과정":
         page_career()
-
     elif menu == "📁 포트폴리오":
         page_portfolio()
-
     elif menu == "📂 파일 불러오기":
         page_file_upload()
-
     elif menu == "🕸️ 온톨로지":
-        page_placeholder(
-            "온톨로지", "교육 및 취업 지식 관계 탐색", "🕸️"
-        )
+        page_ontology()
+    elif menu == "🧠 학습 Q&A":
+        page_chat()
+    else:
+        page_home()
 
 with side_col:
     right_panel()
