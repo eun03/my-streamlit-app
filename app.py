@@ -7,6 +7,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.messages import HumanMessage, AIMessage
 from operator import itemgetter
 
+
 # ==========================================
 # 1. 페이지 설정
 # ==========================================
@@ -16,6 +17,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
 
 # ==========================================
 # 2. CSS 디자인
@@ -28,30 +30,36 @@ st.markdown("""
     background-color: #edf6f7;
 }
 
-/* 기본 여백 */
+/* 전체 여백 */
 .block-container {
     padding-top: 2rem;
     padding-bottom: 2rem;
     max-width: 1500px;
 }
 
-/* 상단 메뉴 숨기기 */
-#MainMenu, footer, header {
+/* 기본 메뉴 및 푸터 숨기기 */
+/* 중요: header는 숨기지 않음! */
+#MainMenu, footer {
     visibility: hidden;
+}
+
+/* 상단 헤더 유지 */
+.stAppHeader {
+    background-color: transparent;
 }
 
 /* 사이드바 */
 section[data-testid="stSidebar"] {
     background-color: #78c5cd;
     min-width: 230px;
-    max-width: 230px;
 }
 
+/* 사이드바 내부 여백 */
 section[data-testid="stSidebar"] > div {
     padding: 25px 15px;
 }
 
-/* 사이드바 텍스트 */
+/* 사이드바 글자 */
 section[data-testid="stSidebar"] p,
 section[data-testid="stSidebar"] label {
     color: white;
@@ -94,7 +102,7 @@ section[data-testid="stSidebar"] label {
     margin-bottom: 20px;
 }
 
-/* 상단 검색창 */
+/* 검색창 */
 div[data-testid="stTextInput"] input {
     border: none;
     border-radius: 15px;
@@ -103,7 +111,7 @@ div[data-testid="stTextInput"] input {
     box-shadow: 0 3px 15px rgba(30,60,80,0.07);
 }
 
-/* 카드 공통 */
+/* 대시보드 카드 */
 .dashboard-card {
     border-radius: 23px;
     padding: 24px;
@@ -176,19 +184,21 @@ div[data-testid="stTextInput"] input {
     min-height: 450px;
 }
 
-/* 채팅 메시지 */
+/* 채팅 말풍선 */
 div[data-testid="stChatMessage"] {
     border-radius: 15px;
     padding: 13px;
     margin-bottom: 12px;
 }
 
+/* 사용자 메시지 */
 div[data-testid="stChatMessage"]:has(
     div[data-testid="chatAvatarIcon-user"]
 ) {
     background-color: #e5f5f5;
 }
 
+/* AI 메시지 */
 div[data-testid="stChatMessage"]:has(
     div[data-testid="chatAvatarIcon-assistant"]
 ) {
@@ -260,14 +270,6 @@ div[data-testid="stChatMessage"]:has(
     background-color: #f0fbfb;
 }
 
-/* 채팅 입력창 */
-div[data-testid="stForm"] {
-    background-color: #f3f6fa;
-    border-radius: 15px;
-    padding: 10px;
-    border: none;
-}
-
 /* 파일 업로드 */
 div[data-testid="stFileUploader"] {
     background-color: white;
@@ -275,6 +277,15 @@ div[data-testid="stFileUploader"] {
     padding: 10px;
 }
 
+/* 채팅 입력 */
+div[data-testid="stForm"] {
+    background-color: #f3f6fa;
+    border-radius: 15px;
+    padding: 10px;
+    border: none;
+}
+
+/* 구분선 */
 hr {
     border-color: #e9eff2;
 }
@@ -291,7 +302,9 @@ COLLECTION = "aivle_docs"
 
 
 def format_docs(docs):
-    return "\n\n".join(doc.page_content for doc in docs)
+    return "\n\n".join(
+        doc.page_content for doc in docs
+    )
 
 
 @st.cache_resource
@@ -355,7 +368,7 @@ def get_chain():
 
 
 # ==========================================
-# 4. 세션 상태
+# 4. 세션 상태 초기화
 # ==========================================
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -364,17 +377,26 @@ if "pending_prompt" not in st.session_state:
     st.session_state.pending_prompt = None
 
 
+# 검색창 입력 처리
+def submit_search():
+    value = st.session_state.get("search_input", "").strip()
+
+    if value:
+        st.session_state.pending_prompt = value
+
+
 # ==========================================
 # 5. 사이드바
 # ==========================================
 with st.sidebar:
 
-    # 로고
+    # AIVLE 로고
     st.markdown("""
     <div class="logo-area">
-        <img src="https://raw.githubusercontent.com/Jangrae/img/master/aivle.png"
+        <img
+        src="https://raw.githubusercontent.com/Jangrae/img/master/aivle.png"
         width="145">
-        <p style="color:#9aa8b0; font-size:11px;">
+        <p style="color:#9aa8b0;font-size:11px;">
         AIVLE SCHOOL
         </p>
     </div>
@@ -382,14 +404,26 @@ with st.sidebar:
 
     # 메뉴
     st.markdown("""
-    <div class="menu-item menu-active">🏠　홈</div>
-    <div class="menu-item">📚　학습 도우미</div>
-    <div class="menu-item">📁　학습 자료</div>
-    <div class="menu-item">💬　대화 기록</div>
+    <div class="menu-item menu-active">
+        🏠　홈
+    </div>
+
+    <div class="menu-item">
+        📚　학습 도우미
+    </div>
+
+    <div class="menu-item">
+        📁　학습 자료
+    </div>
+
+    <div class="menu-item">
+        💬　대화 기록
+    </div>
     """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
+    # 관리자 파일 업로드
     st.markdown("""
     <p style="font-size:14px;font-weight:800;color:white;">
     ⚙️ 관리자
@@ -401,12 +435,19 @@ with st.sidebar:
         type=["pdf", "txt", "docx"]
     )
 
-    if uploaded_file:
-        st.success(f"{uploaded_file.name} 선택됨")
+    if uploaded_file is not None:
+        st.success(
+            f"{uploaded_file.name} 선택됨"
+        )
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    if st.button("🗑️ 대화 삭제", use_container_width=True):
+    # 대화 삭제
+    if st.button(
+        "🗑️ 대화 삭제",
+        use_container_width=True
+    ):
+
         st.session_state.messages = []
         st.session_state.pending_prompt = None
         st.rerun()
@@ -422,55 +463,63 @@ with st.sidebar:
 
 
 # ==========================================
-# 6. 메인 화면 레이아웃
+# 6. 전체 화면 레이아웃
 # ==========================================
-left, right = st.columns([7, 3], gap="large")
+left, right = st.columns(
+    [7, 3],
+    gap="large"
+)
 
 
 # ==========================================
-# 7. 중앙 메인 영역
+# 7. 중앙 대시보드
 # ==========================================
 with left:
 
     # 인사말 및 검색창
-    title_col, search_col = st.columns([5, 4])
+    title_col, search_col = st.columns(
+        [5, 4]
+    )
 
     with title_col:
+
         st.markdown("""
-        <div class="greeting">Hello, AIVLE! 👋</div>
+        <div class="greeting">
+            Hello, AIVLE! 👋
+        </div>
+
         <div class="sub-greeting">
-        오늘도 새로운 지식을 함께 배워봐요.
+            오늘도 새로운 지식을 함께 배워봐요.
         </div>
         """, unsafe_allow_html=True)
 
     with search_col:
-        search_value = st.text_input(
+
+        st.text_input(
             "검색",
             placeholder="궁금한 내용을 검색해 보세요.",
             label_visibility="collapsed",
-            key="search_input"
+            key="search_input",
+            on_change=submit_search
         )
 
-    # 검색어를 입력하고 Enter를 누르면 질문으로 전달
-    if search_value:
-        st.session_state.pending_prompt = search_value
-        st.session_state.search_input = ""
-        st.rerun()
-
     # ======================================
-    # 환영 카드 / 학습 안내 카드
+    # 환영 카드
     # ======================================
-    card1, card2 = st.columns(2, gap="medium")
+    card1, card2 = st.columns(2)
 
     with card1:
+
         st.markdown("""
         <div class="dashboard-card welcome-card">
             <h3>Welcome back! ✨</h3>
+
             <p>
             AIVLE School 학습 도우미입니다.<br>
             교육 과정, 강의 내용, 미니프로젝트 등<br>
             궁금한 내용을 자유롭게 질문해 보세요!
             </p>
+
             <div style="font-size:27px;text-align:right;">
             📘 🤖
             </div>
@@ -478,14 +527,17 @@ with left:
         """, unsafe_allow_html=True)
 
     with card2:
+
         st.markdown("""
         <div class="dashboard-card result-card">
             <h3>Learning Guide 📊</h3>
+
             <p>
             여러분의 학습을 도와드릴게요.<br>
             문서 기반 RAG 시스템을 활용하여<br>
             필요한 정보를 빠르게 찾아보세요.
             </p>
+
             <div style="font-size:27px;text-align:right;">
             💡 📚
             </div>
@@ -500,32 +552,41 @@ with left:
         unsafe_allow_html=True
     )
 
-    f1, f2, f3 = st.columns(3, gap="medium")
+    f1, f2, f3 = st.columns(3)
 
     with f1:
+
         st.markdown("""
         <div class="feature-card">
             <div class="feature-icon">📚</div>
             <div class="feature-title">학습 자료</div>
-            <div class="feature-desc">교육 문서 기반 질문</div>
+            <div class="feature-desc">
+            교육 문서 기반 질문
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
     with f2:
+
         st.markdown("""
         <div class="feature-card">
             <div class="feature-icon">🧠</div>
             <div class="feature-title">학습 Q&A</div>
-            <div class="feature-desc">AI 문서 검색 및 답변</div>
+            <div class="feature-desc">
+            AI 문서 검색 및 답변
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
     with f3:
+
         st.markdown("""
         <div class="feature-card">
             <div class="feature-icon">🚀</div>
             <div class="feature-title">미니프로젝트</div>
-            <div class="feature-desc">프로젝트 정보 확인</div>
+            <div class="feature-desc">
+            프로젝트 정보 확인
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -533,24 +594,33 @@ with left:
     # 채팅 영역
     # ======================================
     st.markdown(
-        '<div class="section-title">💬 AI Learning Assistant</div>',
+        '<div class="section-title">'
+        '💬 AI Learning Assistant'
+        '</div>',
         unsafe_allow_html=True
     )
 
     with st.container(key="chat_panel"):
 
         st.markdown("""
-        <div style="font-size:17px;font-weight:800;color:#19334d;
-        margin-bottom:12px;">
-        🤖 AIVLE School 학습 도우미
+        <div style="
+            font-size:17px;
+            font-weight:800;
+            color:#19334d;
+            margin-bottom:12px;">
+            🤖 AIVLE School 학습 도우미
         </div>
-        <div style="font-size:12px;color:#9baab4;
-        margin-bottom:15px;">
-        궁금한 내용을 질문하면 관련 문서를 찾아 답변해 드립니다.
+
+        <div style="
+            font-size:12px;
+            color:#9baab4;
+            margin-bottom:15px;">
+            궁금한 내용을 질문하면 관련 문서를 찾아
+            답변해 드립니다.
         </div>
         """, unsafe_allow_html=True)
 
-        # 기존 대화 출력
+        # 최초 안내
         if not st.session_state.messages:
 
             st.info(
@@ -558,6 +628,7 @@ with left:
                 "아래 입력창에 질문을 작성해 주세요."
             )
 
+        # 기존 대화 출력
         for message in st.session_state.messages:
 
             role = (
@@ -569,8 +640,11 @@ with left:
             with st.chat_message(role):
                 st.markdown(message.content)
 
-        # 질문 입력
-        with st.form("chat_form", clear_on_submit=True):
+        # 채팅 입력창
+        with st.form(
+            "chat_form",
+            clear_on_submit=True
+        ):
 
             question = st.text_input(
                 "질문 입력",
@@ -585,38 +659,61 @@ with left:
 
 
 # ==========================================
-# 8. 오른쪽 프로필 및 추천 질문
+# 8. 오른쪽 프로필 영역
 # ==========================================
 with right:
 
-    # 프로필 카드
+    # 프로필
     st.markdown("""
     <div class="profile-card">
-        <div class="profile-icon">👩🏻‍💻</div>
-        <div class="profile-name">AIVLE Assistant</div>
-        <div class="profile-desc">
-        Your Learning Partner
+
+        <div class="profile-icon">
+            👩🏻‍💻
         </div>
+
+        <div class="profile-name">
+            AIVLE Assistant
+        </div>
+
+        <div class="profile-desc">
+            Your Learning Partner
+        </div>
+
     </div>
     """, unsafe_allow_html=True)
 
-    # 학습 도우미 안내
+    # 학습 안내
     st.markdown("""
     <div class="info-card">
-        <div class="info-title">📘 학습 도우미 안내</div>
-        <p style="font-size:12px;color:#9aa8b3;line-height:1.8;">
-        AIVLE School 교육 자료를 기반으로<br>
-        질문에 대한 답변을 제공합니다.<br><br>
-        <b style="color:#29445b;">RAG 기반 문서 검색</b><br>
-        관련 문서를 검색하고 답변을 생성합니다.
+
+        <div class="info-title">
+            📘 학습 도우미 안내
+        </div>
+
+        <p style="
+            font-size:12px;
+            color:#9aa8b3;
+            line-height:1.8;">
+
+            AIVLE School 교육 자료를 기반으로
+            질문에 대한 답변을 제공합니다.<br><br>
+
+            <b style="color:#29445b;">
+            RAG 기반 문서 검색
+            </b><br>
+
+            관련 문서를 검색하고 답변을 생성합니다.
+
         </p>
+
     </div>
     """, unsafe_allow_html=True)
 
     # 추천 질문
-    st.markdown("""
-    <div class="section-title">💡 추천 질문</div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-title">💡 추천 질문</div>',
+        unsafe_allow_html=True
+    )
 
     questions = [
         "KT 에이블스쿨 지원 자격은?",
@@ -632,6 +729,7 @@ with right:
             key=f"recommend_{i}",
             use_container_width=True
         ):
+
             st.session_state.pending_prompt = q
             st.rerun()
 
@@ -640,20 +738,33 @@ with right:
 
     st.markdown("""
     <div class="info-card">
-        <div class="info-title">🕒 Recent Activity</div>
-        <p style="font-size:12px;color:#8e9da8;">
-        최근 대화 기록
+
+        <div class="info-title">
+            🕒 Recent Activity
+        </div>
+
+        <p style="
+            font-size:12px;
+            color:#8e9da8;">
+            최근 대화 기록
         </p>
+
     </div>
     """, unsafe_allow_html=True)
 
-    if st.session_state.messages:
+    recent_questions = [
+        msg.content
+        for msg in reversed(st.session_state.messages)
+        if isinstance(msg, HumanMessage)
+    ]
 
-        for msg in reversed(st.session_state.messages):
+    if recent_questions:
 
-            if isinstance(msg, HumanMessage):
-                st.caption("💬 " + msg.content[:30])
+        for q in recent_questions[:5]:
+            st.caption("💬 " + q[:35])
+
     else:
+
         st.caption("아직 대화 기록이 없습니다.")
 
 
@@ -662,11 +773,16 @@ with right:
 # ==========================================
 prompt = None
 
+# 직접 입력한 질문
 if submitted and question.strip():
+
     prompt = question.strip()
 
+# 추천 질문 또는 검색창 질문
 elif st.session_state.pending_prompt:
+
     prompt = st.session_state.pending_prompt
+
 
 if prompt:
 
@@ -677,20 +793,28 @@ if prompt:
         HumanMessage(content=prompt)
     )
 
-    # RAG 답변 생성
     try:
 
-        with st.spinner("관련 문서를 검색하고 있습니다..."):
+        # RAG 체인 실행
+        chain = get_chain()
 
-            chain = get_chain()
+        with st.spinner(
+            "관련 문서를 검색하고 있습니다..."
+        ):
 
-            response_stream = chain.stream({
-                "input": prompt
-            })
+            with st.chat_message("assistant"):
 
-            full_response = st.write_stream(
-                response_stream
-            )
+                st.markdown(
+                    f"**질문:** {prompt}"
+                )
+
+                response_stream = chain.stream({
+                    "input": prompt
+                })
+
+                full_response = st.write_stream(
+                    response_stream
+                )
 
         # AI 답변 저장
         st.session_state.messages.append(
@@ -699,6 +823,8 @@ if prompt:
 
     except Exception as e:
 
-        st.error(f"답변 생성 중 오류가 발생했습니다: {e}")
+        st.error(
+            f"답변 생성 중 오류가 발생했습니다: {e}"
+        )
 
     st.rerun()
