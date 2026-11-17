@@ -38,12 +38,11 @@ st.markdown("""
 }
 
 /* 기본 메뉴 및 푸터 숨기기 */
-/* 중요: header는 숨기지 않음! */
 #MainMenu, footer {
     visibility: hidden;
 }
 
-/* 상단 헤더 유지 */
+/* 상단 헤더 유지 - 사이드바 버튼 보호 */
 .stAppHeader {
     background-color: transparent;
 }
@@ -72,6 +71,12 @@ section[data-testid="stSidebar"] label {
     padding: 17px 10px;
     margin-bottom: 30px;
     text-align: center;
+}
+
+.logo-area p {
+    color: #9aa8b0 !important;
+    font-size: 11px;
+    margin-bottom: 0;
 }
 
 /* 사이드바 메뉴 */
@@ -118,6 +123,7 @@ div[data-testid="stTextInput"] input {
     min-height: 155px;
     box-shadow: 0 5px 20px rgba(50,80,100,0.07);
     margin-bottom: 18px;
+    box-sizing: border-box;
 }
 
 .welcome-card {
@@ -133,11 +139,13 @@ div[data-testid="stTextInput"] input {
 .dashboard-card h3 {
     font-size: 20px;
     margin: 0 0 12px 0;
+    color: white;
 }
 
 .dashboard-card p {
     font-size: 13px;
     line-height: 1.7;
+    color: white;
 }
 
 /* 기능 카드 */
@@ -149,6 +157,7 @@ div[data-testid="stTextInput"] input {
     min-height: 105px;
     text-align: center;
     color: #263c54;
+    box-sizing: border-box;
 }
 
 .feature-icon {
@@ -184,6 +193,20 @@ div[data-testid="stTextInput"] input {
     min-height: 450px;
 }
 
+/* 채팅 제목 */
+.chat-heading {
+    font-size: 17px;
+    font-weight: 800;
+    color: #19334d;
+    margin-bottom: 12px;
+}
+
+.chat-description {
+    font-size: 12px;
+    color: #9baab4;
+    margin-bottom: 15px;
+}
+
 /* 채팅 말풍선 */
 div[data-testid="stChatMessage"] {
     border-radius: 15px;
@@ -216,7 +239,7 @@ div[data-testid="stChatMessage"]:has(
 }
 
 .profile-icon {
-    font-size: 48px;
+    font-size: 42px;
     background-color: #e9f1fa;
     width: 80px;
     height: 80px;
@@ -235,6 +258,7 @@ div[data-testid="stChatMessage"]:has(
 .profile-desc {
     font-size: 12px;
     color: #a1adb8;
+    margin-top: 5px;
 }
 
 /* 오른쪽 정보 카드 */
@@ -251,6 +275,12 @@ div[data-testid="stChatMessage"]:has(
     font-size: 15px;
     font-weight: 800;
     margin-bottom: 12px;
+}
+
+.info-card p {
+    font-size: 12px;
+    color: #9aa8b3;
+    line-height: 1.8;
 }
 
 /* 버튼 */
@@ -277,7 +307,7 @@ div[data-testid="stFileUploader"] {
     padding: 10px;
 }
 
-/* 채팅 입력 */
+/* 채팅 입력 폼 */
 div[data-testid="stForm"] {
     background-color: #f3f6fa;
     border-radius: 15px;
@@ -301,12 +331,14 @@ CHROMA_DIR = "chroma_db"
 COLLECTION = "aivle_docs"
 
 
+# 문서 포맷팅 함수
 def format_docs(docs):
     return "\n\n".join(
         doc.page_content for doc in docs
     )
 
 
+# Embedding 및 검색기
 @st.cache_resource
 def get_retriever():
 
@@ -325,6 +357,7 @@ def get_retriever():
     )
 
 
+# RAG 체인
 @st.cache_resource
 def get_chain():
 
@@ -377,9 +410,12 @@ if "pending_prompt" not in st.session_state:
     st.session_state.pending_prompt = None
 
 
-# 검색창 입력 처리
+# 검색창 콜백
 def submit_search():
-    value = st.session_state.get("search_input", "").strip()
+
+    value = st.session_state.get(
+        "search_input", ""
+    ).strip()
 
     if value:
         st.session_state.pending_prompt = value
@@ -391,44 +427,39 @@ def submit_search():
 with st.sidebar:
 
     # AIVLE 로고
-    st.markdown("""
+    st.html("""
     <div class="logo-area">
         <img
-        src="https://raw.githubusercontent.com/Jangrae/img/master/aivle.png"
-        width="145">
-        <p style="color:#9aa8b0;font-size:11px;">
-        AIVLE SCHOOL
-        </p>
+            src="https://raw.githubusercontent.com/Jangrae/img/master/aivle.png"
+            width="145">
+        <p>AIVLE SCHOOL</p>
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
-    # 메뉴
-    st.markdown("""
+    # 사이드바 메뉴
+    st.html("""
     <div class="menu-item menu-active">
         🏠　홈
     </div>
-
     <div class="menu-item">
         📚　학습 도우미
     </div>
-
     <div class="menu-item">
         📁　학습 자료
     </div>
-
     <div class="menu-item">
         💬　대화 기록
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 관리자 파일 업로드
-    st.markdown("""
+    # 관리자
+    st.html("""
     <p style="font-size:14px;font-weight:800;color:white;">
-    ⚙️ 관리자
+        ⚙️ 관리자
     </p>
-    """, unsafe_allow_html=True)
+    """)
 
     uploaded_file = st.file_uploader(
         "파일 업로드",
@@ -454,12 +485,12 @@ with st.sidebar:
 
     st.markdown("<br><br>", unsafe_allow_html=True)
 
-    st.markdown("""
+    st.html("""
     <p style="color:white;font-size:12px;">
-    AIVLE School<br>
-    Learning Assistant
+        AIVLE School<br>
+        Learning Assistant
     </p>
-    """, unsafe_allow_html=True)
+    """)
 
 
 # ==========================================
@@ -483,15 +514,14 @@ with left:
 
     with title_col:
 
-        st.markdown("""
+        st.html("""
         <div class="greeting">
             Hello, AIVLE! 👋
         </div>
-
         <div class="sub-greeting">
             오늘도 새로운 지식을 함께 배워봐요.
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     with search_col:
 
@@ -510,117 +540,105 @@ with left:
 
     with card1:
 
-        st.markdown("""
+        st.html("""
         <div class="dashboard-card welcome-card">
             <h3>Welcome back! ✨</h3>
-
             <p>
-            AIVLE School 학습 도우미입니다.<br>
-            교육 과정, 강의 내용, 미니프로젝트 등<br>
-            궁금한 내용을 자유롭게 질문해 보세요!
+                AIVLE School 학습 도우미입니다.<br>
+                교육 과정, 강의 내용, 미니프로젝트 등<br>
+                궁금한 내용을 자유롭게 질문해 보세요!
             </p>
-
             <div style="font-size:27px;text-align:right;">
-            📘 🤖
+                📘 🤖
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     with card2:
 
-        st.markdown("""
+        st.html("""
         <div class="dashboard-card result-card">
             <h3>Learning Guide 📊</h3>
-
             <p>
-            여러분의 학습을 도와드릴게요.<br>
-            문서 기반 RAG 시스템을 활용하여<br>
-            필요한 정보를 빠르게 찾아보세요.
+                여러분의 학습을 도와드릴게요.<br>
+                문서 기반 RAG 시스템을 활용하여<br>
+                필요한 정보를 빠르게 찾아보세요.
             </p>
-
             <div style="font-size:27px;text-align:right;">
-            💡 📚
+                💡 📚
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     # ======================================
     # 주요 기능 카드
     # ======================================
-    st.markdown(
-        '<div class="section-title">Quick Menu</div>',
-        unsafe_allow_html=True
-    )
+    st.html("""
+    <div class="section-title">
+        Quick Menu
+    </div>
+    """)
 
     f1, f2, f3 = st.columns(3)
 
     with f1:
 
-        st.markdown("""
+        st.html("""
         <div class="feature-card">
             <div class="feature-icon">📚</div>
             <div class="feature-title">학습 자료</div>
             <div class="feature-desc">
-            교육 문서 기반 질문
+                교육 문서 기반 질문
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     with f2:
 
-        st.markdown("""
+        st.html("""
         <div class="feature-card">
             <div class="feature-icon">🧠</div>
             <div class="feature-title">학습 Q&A</div>
             <div class="feature-desc">
-            AI 문서 검색 및 답변
+                AI 문서 검색 및 답변
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     with f3:
 
-        st.markdown("""
+        st.html("""
         <div class="feature-card">
             <div class="feature-icon">🚀</div>
             <div class="feature-title">미니프로젝트</div>
             <div class="feature-desc">
-            프로젝트 정보 확인
+                프로젝트 정보 확인
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     # ======================================
     # 채팅 영역
     # ======================================
-    st.markdown(
-        '<div class="section-title">'
-        '💬 AI Learning Assistant'
-        '</div>',
-        unsafe_allow_html=True
-    )
+    st.html("""
+    <div class="section-title">
+        💬 AI Learning Assistant
+    </div>
+    """)
 
     with st.container(key="chat_panel"):
 
-        st.markdown("""
-        <div style="
-            font-size:17px;
-            font-weight:800;
-            color:#19334d;
-            margin-bottom:12px;">
+        st.html("""
+        <div class="chat-heading">
             🤖 AIVLE School 학습 도우미
         </div>
-
-        <div style="
-            font-size:12px;
-            color:#9baab4;
-            margin-bottom:15px;">
+        <div class="chat-description">
             궁금한 내용을 질문하면 관련 문서를 찾아
             답변해 드립니다.
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
-        # 최초 안내
+        # 최초 안내 메시지
         if not st.session_state.messages:
 
             st.info(
@@ -659,61 +677,48 @@ with left:
 
 
 # ==========================================
-# 8. 오른쪽 프로필 영역
+# 8. 오른쪽 프로필 및 추천 질문
 # ==========================================
 with right:
 
     # 프로필
-    st.markdown("""
+    st.html("""
     <div class="profile-card">
-
         <div class="profile-icon">
             👩🏻‍💻
         </div>
-
         <div class="profile-name">
             AIVLE Assistant
         </div>
-
         <div class="profile-desc">
             Your Learning Partner
         </div>
-
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
-    # 학습 안내
-    st.markdown("""
+    # 학습 도우미 안내
+    st.html("""
     <div class="info-card">
-
         <div class="info-title">
             📘 학습 도우미 안내
         </div>
-
-        <p style="
-            font-size:12px;
-            color:#9aa8b3;
-            line-height:1.8;">
-
+        <p>
             AIVLE School 교육 자료를 기반으로
             질문에 대한 답변을 제공합니다.<br><br>
-
             <b style="color:#29445b;">
-            RAG 기반 문서 검색
+                RAG 기반 문서 검색
             </b><br>
-
             관련 문서를 검색하고 답변을 생성합니다.
-
         </p>
-
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
     # 추천 질문
-    st.markdown(
-        '<div class="section-title">💡 추천 질문</div>',
-        unsafe_allow_html=True
-    )
+    st.html("""
+    <div class="section-title">
+        💡 추천 질문
+    </div>
+    """)
 
     questions = [
         "KT 에이블스쿨 지원 자격은?",
@@ -736,21 +741,16 @@ with right:
     # 최근 대화
     st.markdown("<br>", unsafe_allow_html=True)
 
-    st.markdown("""
+    st.html("""
     <div class="info-card">
-
         <div class="info-title">
             🕒 Recent Activity
         </div>
-
-        <p style="
-            font-size:12px;
-            color:#8e9da8;">
+        <p>
             최근 대화 기록
         </p>
-
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
     recent_questions = [
         msg.content
@@ -795,7 +795,6 @@ if prompt:
 
     try:
 
-        # RAG 체인 실행
         chain = get_chain()
 
         with st.spinner(
@@ -803,10 +802,6 @@ if prompt:
         ):
 
             with st.chat_message("assistant"):
-
-                st.markdown(
-                    f"**질문:** {prompt}"
-                )
 
                 response_stream = chain.stream({
                     "input": prompt
