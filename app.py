@@ -73,52 +73,6 @@ section[data-testid="stSidebar"] * {
     color: white;
 }
 
-/* 바로가기 링크: 흰색 카드 위에 진한 글씨가 항상 보이도록 고정 */
-section[data-testid="stSidebar"] a.sidebar-shortcut-link,
-section[data-testid="stSidebar"] a.sidebar-shortcut-link:visited {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: 6px !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-    min-height: 48px !important;
-    padding: 10px 11px !important;
-    margin: 7px 0 !important;
-    border-radius: 11px !important;
-    border: 1px solid rgba(255,255,255,0.85) !important;
-    background: #ffffff !important;
-    color: #173653 !important;
-    -webkit-text-fill-color: #173653 !important;
-    text-decoration: none !important;
-    font-size: 12px !important;
-    font-weight: 800 !important;
-    line-height: 1.35 !important;
-    opacity: 1 !important;
-    box-shadow: 0 2px 7px rgba(25,70,90,0.08) !important;
-}
-section[data-testid="stSidebar"] a.sidebar-shortcut-link span {
-    color: #173653 !important;
-    -webkit-text-fill-color: #173653 !important;
-    opacity: 1 !important;
-}
-section[data-testid="stSidebar"] .shortcut-label {
-    display: flex !important;
-    align-items: center !important;
-    gap: 6px !important;
-    min-width: 0 !important;
-}
-section[data-testid="stSidebar"] .shortcut-arrow {
-    flex: 0 0 auto !important;
-    color: #159eae !important;
-    -webkit-text-fill-color: #159eae !important;
-}
-section[data-testid="stSidebar"] a.sidebar-shortcut-link:hover {
-    background: #eafafa !important;
-    color: #087f8b !important;
-    -webkit-text-fill-color: #087f8b !important;
-}
-
 /* 사이드바 메뉴 버튼 */
 section[data-testid="stSidebar"] div.stButton > button {
     width: 100%;
@@ -196,31 +150,6 @@ section[data-testid="stSidebar"] div.stButton > button[data-testid="stBaseButton
 .logo-sub {
     color: #28b7c0;
     font-size: 12px;
-}
-
-/* 프로필 설정 화면 */
-div[data-testid="stForm"] {
-    background: rgba(255,255,255,0.72);
-    border: 1px solid #dce9ed;
-    border-radius: 16px;
-    padding: 20px 22px;
-    box-shadow: 0 5px 18px rgba(31,82,105,0.06);
-}
-div[data-testid="stForm"] label,
-div[data-testid="stForm"] p {
-    color: #193653 !important;
-    font-weight: 700;
-}
-div[data-testid="stForm"] input {
-    border-radius: 9px;
-}
-div[data-testid="stForm"] button[kind="primary"] {
-    background: #ff4b4b !important;
-    border: 0 !important;
-    color: white !important;
-    font-weight: 800 !important;
-    border-radius: 9px !important;
-    min-height: 42px;
 }
 
 /* 제목 */
@@ -583,6 +512,12 @@ div[data-testid="stForm"] button[kind="primary"] {
     border-color: #40c1c8;
 }
 
+/* 오른쪽 챗봇 입력창 */
+section[data-testid="stMain"] div[data-testid="stTextInput"] input {
+    border-radius: 10px;
+    border: 1px solid #dcebf0;
+}
+
 /* 입력창 */
 .stChatInput textarea {
     color: #193653;
@@ -611,20 +546,6 @@ section[data-testid="stSidebar"] button[kind="primary"] * {
     -webkit-text-fill-color: #193653 !important;
 }
 
-
-.profile-stage-badge {
-    display: inline-block;
-    margin-top: 8px;
-    padding: 7px 14px;
-    border-radius: 999px;
-    background: #e4f7f7;
-    color: #159eaa;
-    border: 1px solid #c7eeee;
-    font-size: 12px;
-    font-weight: 800;
-    line-height: 1.4;
-}
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -634,67 +555,150 @@ section[data-testid="stSidebar"] button[kind="primary"] * {
 # =========================================================
 
 def format_docs(docs):
-    return "\n\n".join(doc.page_content for doc in docs)
+    """검색된 문서 청크를 LLM 입력용 문자열로 변환합니다."""
+    formatted = []
+    for doc in docs:
+        source = doc.metadata.get("source", "출처 미상")
+        category = doc.metadata.get("category", "기타")
+        description = doc.metadata.get("description", "")
+        formatted.append(
+            f"[문서명: {source} | 카테고리: {category} | 설명: {description}]\n"
+            f"{doc.page_content}"
+        )
+    return "\n\n---\n\n".join(formatted)
 
 
 @st.cache_resource
-def get_retriever():
-
-    embedding = OpenAIEmbeddings(
-        model="text-embedding-3-small"
-    )
-
-    vectorstore = Chroma(
+def get_vectorstore():
+    """업로드 문서의 임베딩이 저장된 ChromaDB를 불러옵니다."""
+    embedding = OpenAIEmbeddings(model="text-embedding-3-small")
+    return Chroma(
         collection_name=COLLECTION,
         embedding_function=embedding,
         persist_directory=CHROMA_DIR
     )
 
-    return vectorstore.as_retriever(
-        search_kwargs={"k": 3}
+
+@st.cache_resource
+def get_retriever():
+    return get_vectorstore().as_retriever(
+        search_kwargs={"k": 4}
     )
 
 
 @st.cache_resource
-def get_chain():
-
-    retriever = get_retriever()
-
-    s_msg = """
-    당신은 주어진 문서를 기반으로 답변하는
-    AIVLE School 학습 도우미입니다.
-
-    반드시 제공된 문서를 우선적으로 참고하여 답변하세요.
-    문서에 없는 내용은 추측하지 말고 안내하세요.
-
-    [문서]
-    {context}
-    """
-
-    h_msg = "{input}"
-
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", s_msg),
-        ("human", h_msg)
-    ])
-
-    llm = ChatOpenAI(
+def get_llm():
+    return ChatOpenAI(
         model="gpt-4o-mini",
-        streaming=True,
+        streaming=False,
         temperature=0
     )
 
-    rag_chain = (
-        {
-            "context": itemgetter("input") | retriever | format_docs,
-            "input": itemgetter("input")
-        }
-        | prompt
-        | llm
-        | StrOutputParser()
-    )
 
-    return rag_chain
+def retrieve_documents(question, search_scope="전체 문서"):
+    """선택한 검색 범위에 맞춰 ChromaDB에서 관련 문서를 검색합니다."""
+    vectorstore = get_vectorstore()
+
+    if search_scope == "학습백서·교육 자료":
+        docs = vectorstore.similarity_search(
+            question,
+            k=4,
+            filter={"category": "교육 자료"}
+        )
+    else:
+        docs = vectorstore.similarity_search(question, k=4)
+
+    return docs
+
+
+def answer_with_rag(question, search_scope="전체 문서"):
+    """질문과 관련된 문서를 검색한 뒤 GPT 답변 및 출처를 반환합니다."""
+    docs = retrieve_documents(question, search_scope)
+
+    if not docs:
+        if search_scope == "학습백서·교육 자료":
+            return (
+                "등록된 교육 자료·학습백서를 찾지 못했습니다. 파일 불러오기 페이지에서 "
+                "백서 또는 교안을 '교육 자료' 카테고리로 업로드한 뒤 다시 질문해 주세요.",
+                []
+            )
+        return (
+            "질문과 관련된 문서를 찾지 못했습니다. 파일 불러오기 페이지에서 "
+            "학습백서나 교안을 먼저 업로드해 주세요.",
+            []
+        )
+
+    context = format_docs(docs)
+    system_message = """
+당신은 KT AIVLE School의 학습 및 취업 준비를 돕는 RAG 기반 AI 어시스턴트입니다.
+반드시 아래 검색 문서의 내용을 최우선 근거로 답변하세요.
+
+답변 원칙:
+1. 문서에 명시된 내용을 바탕으로 정확하고 이해하기 쉽게 한국어로 답변합니다.
+2. 문서에 없는 사실이나 수치, 일정, 자격 요건은 임의로 추측하지 않습니다.
+3. 근거가 부족하면 '업로드된 문서에서 해당 내용을 확인할 수 없습니다'라고 명확히 말합니다.
+4. 여러 문서의 내용이 관련되면 공통점과 차이점을 구분해 정리합니다.
+5. 교육과정, DX 컨설턴트, AI 개발자, 프로젝트, 포트폴리오, 취업 준비 관련 질문은 항목별로 구조화해 답변합니다.
+6. 답변 마지막에 필요하면 참고한 문서명을 짧게 언급합니다.
+
+[검색된 문서]
+{context}
+"""
+
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", system_message),
+        ("human", "질문: {question}\n\n문서 내용을 근거로 답변해 주세요.")
+    ])
+
+    response = (prompt | get_llm()).invoke({
+        "context": context,
+        "question": question
+    })
+
+    answer = response.content if hasattr(response, "content") else str(response)
+
+    # 사용자 화면에 보여줄 출처 정보는 중복 문서를 제거합니다.
+    sources = []
+    seen = set()
+    for doc in docs:
+        metadata = doc.metadata or {}
+        source = metadata.get("source", "출처 미상")
+        category = metadata.get("category", "기타")
+        key = (source, category)
+        if key not in seen:
+            seen.add(key)
+            sources.append({
+                "source": source,
+                "category": category,
+                "description": metadata.get("description", "")
+            })
+
+    return answer, sources
+
+
+def process_rag_question(question, search_scope="전체 문서"):
+    """사이드바와 학습 Q&A 페이지가 함께 사용하는 공통 질문 처리 함수."""
+    question = (question or "").strip()
+    if not question:
+        return
+
+    st.session_state.messages.append(HumanMessage(content=question))
+    try:
+        with st.spinner("관련 학습 문서를 검색하고 답변을 생성하고 있습니다..."):
+            answer, sources = answer_with_rag(question, search_scope)
+        st.session_state.messages.append(AIMessage(content=answer))
+        st.session_state.last_sources = sources
+        st.session_state.last_search_scope = search_scope
+        st.session_state.last_rag_error = None
+    except Exception as error:
+        error_message = (
+            "답변 생성 중 오류가 발생했습니다. OpenAI API 키, 임베딩 모델 및 "
+            "ChromaDB 설정을 확인해 주세요.\n\n"
+            f"오류 내용: {error}"
+        )
+        st.session_state.messages.append(AIMessage(content=error_message))
+        st.session_state.last_sources = []
+        st.session_state.last_rag_error = str(error)
 
 
 # =========================================================
@@ -716,19 +720,6 @@ if "calendar_month" not in st.session_state:
 if "menu" not in st.session_state:
     st.session_state.menu = "🏠 홈"
 
-# 최초 접속 시 프로필 설정을 먼저 보여주기 위한 상태
-if "profile_completed" not in st.session_state:
-    st.session_state.profile_completed = False
-
-if "user_profile" not in st.session_state:
-    st.session_state.user_profile = {
-        "name": "",
-        "stage": "에이블러(교육생)",
-        "track": "DX 컨설턴트 트랙",
-        "company": "",
-        "job": "",
-    }
-
 if "uploaded_documents" not in st.session_state:
     st.session_state.uploaded_documents = []
 
@@ -740,6 +731,15 @@ if "ontology_tab" not in st.session_state:
 
 if "ontology_query_result" not in st.session_state:
     st.session_state.ontology_query_result = None
+
+if "last_sources" not in st.session_state:
+    st.session_state.last_sources = []
+
+if "last_search_scope" not in st.session_state:
+    st.session_state.last_search_scope = "전체 문서"
+
+if "last_rag_error" not in st.session_state:
+    st.session_state.last_rag_error = None
 
 
 # =========================================================
@@ -788,105 +788,7 @@ def subject_card(icon, title, description):
 
 
 # =========================================================
-# 6. 프로필 설정 및 맞춤 추천 질문
-# =========================================================
-
-def get_recommended_questions():
-    """사용자 단계, 트랙, 희망 기업/직무를 반영한 추천 질문을 반환합니다."""
-    profile = st.session_state.get("user_profile", {})
-    stage = profile.get("stage", "에이블러(교육생)")
-    track = profile.get("track", "DX 컨설턴트 트랙")
-    company = profile.get("company", "").strip()
-    job = profile.get("job", "").strip()
-
-    if stage == "예비 에이블러":
-        stage_question = "KT 에이블스쿨 지원 자격과 선발 절차를 알려주세요."
-        stage_question_2 = "교육 시작 전 미리 준비하면 좋은 기초 역량은 무엇인가요?"
-    elif stage == "수료자(1년)":
-        stage_question = "수료 후 취업 준비 로드맵을 단계별로 알려주세요."
-        stage_question_2 = "프로젝트 경험을 자기소개서와 면접에서 활용하는 방법은?"
-    else:
-        stage_question = "현재 교육 단계에서 우선적으로 복습해야 할 내용은 무엇인가요?"
-        stage_question_2 = "미니프로젝트 결과물을 포트폴리오로 정리하는 방법은?"
-
-    if "AI 개발자" in track:
-        track_question = "AI 개발자에게 필요한 Python·머신러닝·딥러닝 역량은 무엇인가요?"
-        track_question_2 = "AI 개발자 트랙 프로젝트를 기술 면접에서 설명하는 방법은?"
-    else:
-        track_question = "DX 컨설턴트에게 필요한 데이터 분석 및 비즈니스 문제 해결 역량은?"
-        track_question_2 = "데이터 분석 프로젝트를 DX 컨설턴트 직무 성과로 표현하는 방법은?"
-
-    questions = [stage_question, track_question]
-    if company:
-        questions.append(f"{company}의 채용 준비 시 중점적으로 확인해야 할 역량은?")
-    if job:
-        questions.append(f"희망 직무인 {job}에 맞는 포트폴리오 구성 방법은?")
-    questions.extend([stage_question_2, track_question_2])
-    return questions[:5]
-
-
-def page_profile():
-    profile = st.session_state.user_profile
-    st.markdown("""
-    <div class="hero" style="min-height:110px; margin-bottom:18px;">
-        <div>
-            <h1 style="font-size:27px;">AIVLE School 학습 도우미 👋</h1>
-            <p style="margin:8px 0 0; color:#55718a;">먼저 프로필을 설정하면, 단계와 트랙에 맞는 안내와 챗봇 답변을 보여드려요.</p>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    left, form_col = st.columns([0.42, 1.58], gap="large")
-    with left:
-        st.markdown("""
-        <div class="right-card" style="text-align:center; padding:30px 18px;">
-            <div style="font-size:55px;">👩🏻‍💻</div>
-            <h3 style="color:#193653;">나에게 맞는 학습 도우미</h3>
-            <p>현재 상황과 목표를 알려주시면<br>맞춤형 학습·취업 정보를 추천해 드립니다.</p>
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown("""
-        <div class="info-card" style="margin-top:14px;">
-            <h3>🔒 프로필 정보 안내</h3>
-            <p>입력한 정보는 이 앱의 추천 질문과 화면 안내를 개인화하는 데 사용됩니다.</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with form_col:
-        st.markdown('<div class="section-title"><span class="section-number">01.</span> 프로필 설정</div>', unsafe_allow_html=True)
-        with st.form("profile_setup_form"):
-            name = st.text_input("이름 (닉네임)", value=profile.get("name", ""), placeholder="예: 홍길동")
-            stage = st.radio(
-                "현재 단계",
-                ["예비 에이블러", "에이블러(교육생)", "수료자(1년)"],
-                index=["예비 에이블러", "에이블러(교육생)", "수료자(1년)"].index(profile.get("stage", "에이블러(교육생)")),
-                horizontal=True
-            )
-            track = st.radio(
-                "트랙",
-                ["DX 컨설턴트 트랙", "AI 개발자 트랙"],
-                index=0 if "DX" in profile.get("track", "DX") else 1,
-                horizontal=True
-            )
-            company = st.text_input("희망 기업 (선택)", value=profile.get("company", ""), placeholder="예: KT, 금융권, 공기업")
-            job = st.text_input("희망 직무 (선택)", value=profile.get("job", ""), placeholder="예: DX 컨설턴트, 데이터 분석가")
-            submitted = st.form_submit_button("시작하기 →", use_container_width=True, type="primary")
-
-            if submitted:
-                st.session_state.user_profile = {
-                    "name": name.strip(),
-                    "stage": stage,
-                    "track": track,
-                    "company": company.strip(),
-                    "job": job.strip(),
-                }
-                st.session_state.profile_completed = True
-                st.session_state.menu = "🏠 홈"
-                st.rerun()
-
-
-# =========================================================
-# 7. 왼쪽 사이드바
+# 6. 왼쪽 사이드바
 # =========================================================
 
 menu_items = [
@@ -896,138 +798,173 @@ menu_items = [
     "💼 취업과정",
     "📁 포트폴리오",
     "📂 파일 불러오기",
-    "🕸️ 온톨로지"
+    "🕸️ 온톨로지",
+    "🧠 학습 Q&A"
 ]
 
-if st.session_state.profile_completed:
-    with st.sidebar:
-    
-        # AIVLE 로고
-        st.markdown("""
-        <div class="logo-box">
-            <div class="logo-main">◢ AIVLE</div>
-            <div class="logo-sub">AIVLE SCHOOL</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-        # 라디오 버튼 대신 일반 버튼으로 메뉴 구성
-        for item in menu_items:
-            if st.button(
-                item,
-                key=f"nav_{item}",
-                use_container_width=True,
-                type="primary" if st.session_state.menu == item else "secondary"
-            ):
-                st.session_state.menu = item
-                st.rerun()
-    
-        st.markdown("<br><hr>", unsafe_allow_html=True)
-    
-        # 바로가기: 페이지 이름을 한글로 표시하고 글자색을 진하게 고정
-        st.markdown("<br><hr>", unsafe_allow_html=True)
-        st.markdown("#### 🔗 바로가기")
-    
-        shortcut_links = [
-            ("🎓", "에이블 에듀 LMS", "https://aivle.edu.kt.co.kr"),
-            ("🏫", "에이블스쿨 공식 홈페이지", "https://aivle.kt.co.kr/home/main/indexMain"),
-            ("📸", "에이블스쿨 인스타그램", "https://www.instagram.com/aivlestory?igshid=YmMyMTA2M2Y%3D"),
-            ("💼", "취업지원 플랫폼", "https://aivle10.univjob.co.kr"),
-        ]
-    
-        for link_icon, link_label, link_url in shortcut_links:
-            st.markdown(
-                f"""
-                <a class="sidebar-shortcut-link"
-                   href="{link_url}" target="_blank" rel="noopener noreferrer">
-                    <span class="shortcut-label">
-                        <span class="shortcut-icon">{link_icon}</span>
-                        <span>{link_label}</span>
-                    </span>
-                    <span class="shortcut-arrow">↗</span>
-                </a>
-                """,
-                unsafe_allow_html=True
-            )
-    
-        st.markdown("""
-        <br><br>
-        <div style="font-size:12px; line-height:1.8; color:white;">
-            AIVLE School<br>
-            Learning Assistant
-        </div>
-        """, unsafe_allow_html=True)
+with st.sidebar:
+
+    # AIVLE 로고
+    st.markdown("""
+    <div class="logo-box">
+        <div class="logo-main">◢ AIVLE</div>
+        <div class="logo-sub">AIVLE SCHOOL</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 라디오 버튼 대신 일반 버튼으로 메뉴 구성
+    for item in menu_items:
+        if st.button(
+            item,
+            key=f"nav_{item}",
+            use_container_width=True,
+            type="primary" if st.session_state.menu == item else "secondary"
+        ):
+            st.session_state.menu = item
+            st.rerun()
+
+    st.markdown("<br><hr>", unsafe_allow_html=True)
+
+    # 관리자 메뉴는 제거하고 문서 업로드/관리는 유지
+    st.markdown("#### 📄 백서 및 학습 문서 업로드")
+
+    uploaded_file = st.file_uploader(
+        "파일 선택",
+        type=["pdf", "txt", "docx"],
+        help="200MB per file"
+    )
+
+    st.caption("200MB per file · PDF, TXT, DOCX")
+
+    st.markdown("---")
+    st.markdown("#### 📑 등록된 문서 관리")
+
+    st.selectbox(
+        "문서 선택",
+        ["등록된 문서 없음"],
+        label_visibility="collapsed"
+    )
+
+    st.caption("저장된 청크: 0개")
+
+    if st.button("🗑️ 대화 전체 삭제", use_container_width=True):
+        st.session_state.messages = []
+        st.rerun()
+
+    st.markdown("""
+    <br><br>
+    <div style="font-size:12px; line-height:1.8; color:white;">
+        AIVLE School<br>
+        Learning Assistant
+    </div>
+    """, unsafe_allow_html=True)
+
 
 # =========================================================
 # 7. 오른쪽 공통 패널
 # =========================================================
 
 def right_panel():
-
-    # 홈 화면의 Assistant 카드에 프로필에서 선택한 현재 단계를 표시합니다.
-    current_stage = st.session_state.get("user_profile", {}).get("stage", "에이블러(교육생)")
-    stage_html = ""
-    if st.session_state.get("menu") == "🏠 홈":
-        stage_html = f'<div class="profile-stage-badge">현재 단계&nbsp; · &nbsp;{escape(current_stage)}</div>'
-
-    st.markdown(f"""
+    """오른쪽 고정 영역: AIVLE 안내 + 실제 RAG 챗봇."""
+    st.markdown("""
     <div class="right-card" style="text-align:center;">
         <div class="assistant-icon">👩🏻‍💻</div>
         <h3 style="margin-top:12px;">AIVLE Assistant</h3>
         <p>Your Learning Partner</p>
-        {stage_html}
     </div>
-
     <div class="right-card">
         <h3>📘 학습 도우미 안내</h3>
-        <p>
-            AIVLE School 교육 자료를 기반으로
-            질문에 대한 답변을 제공합니다.
-        </p>
-        <b style="color:#193653;font-size:13px;">
-            RAG 기반 문서 검색
-        </b>
-        <p>관련 문서를 검색하고 답변을 생성합니다.</p>
+        <p>AIVLE School 학습백서와 업로드한 교안·프로젝트 자료를 검색해 근거 중심으로 답변합니다.</p>
+        <b style="color:#193653;font-size:13px;">RAG 파이프라인</b>
+        <p style="margin-bottom:5px;">질문 입력 → 문서 검색 → 관련 청크 추출 → GPT 답변 생성</p>
+        <p style="margin-bottom:0;">답변 아래에서 참고 문서와 카테고리를 확인할 수 있습니다.</p>
     </div>
-
-    <div style="font-size:18px;font-weight:900;
-                color:#193653;margin:20px 0 12px;">
-        💡 맞춤 추천 질문
-    </div>
-
     """, unsafe_allow_html=True)
-
-    for question in get_recommended_questions():
-        st.markdown(
-            f'<div class="question-item">{escape(question)}</div>',
-            unsafe_allow_html=True
-        )
 
     st.markdown("""
-    <div class="right-card" style="margin-top:25px;">
-        <h3>🕒 Recent Activity</h3>
-        <p>최근 대화 기록</p>
+    <div style="font-size:18px;font-weight:900;color:#193653;margin:18px 0 8px;">
+        💬 AIVLE AI 챗봇
     </div>
     """, unsafe_allow_html=True)
 
+    # 검색 범위 선택: 백서/교안은 업로드 시 '교육 자료' 카테고리로 등록해야 검색됩니다.
+    search_scope = st.selectbox(
+        "검색 범위",
+        ["전체 문서", "학습백서·교육 자료"],
+        key="sidebar_search_scope",
+        help="학습백서·교육 자료를 선택하면 '교육 자료' 카테고리로 등록된 문서만 검색합니다."
+    )
+
+    with st.form("sidebar_rag_chat_form", clear_on_submit=True):
+        question = st.text_input(
+            "질문 입력",
+            placeholder="예: RAG 파이프라인을 설명해 줘.",
+            label_visibility="collapsed"
+        )
+        submitted = st.form_submit_button(
+            "질문하기 ➤",
+            use_container_width=True,
+            type="primary"
+        )
+
+    if submitted and question.strip():
+        process_rag_question(question, search_scope)
+        st.rerun()
+
+    st.markdown("**💡 추천 질문**")
+    suggested_questions = [
+        "AIVLE School 학습백서의 주요 내용을 요약해 줘.",
+        "RAG 파이프라인이 어떤 순서로 동작하는지 설명해 줘.",
+        "교육과정은 어떤 단계로 구성되어 있나요?",
+        "미니프로젝트와 빅프로젝트의 차이를 알려줘."
+    ]
+
+    for idx, suggested in enumerate(suggested_questions):
+        if st.button(
+            suggested,
+            key=f"sidebar_suggested_question_{idx}",
+            use_container_width=True
+        ):
+            process_rag_question(suggested, search_scope)
+            st.rerun()
+
+    # 대화 내역은 공통 session_state.messages를 사용합니다.
+    st.markdown("**🗨️ 최근 대화**")
     if st.session_state.messages:
+        with st.container(height=300, border=True):
+            for message in st.session_state.messages[-8:]:
+                if isinstance(message, HumanMessage):
+                    st.markdown(f"**🙋 질문**\n\n{message.content}")
+                else:
+                    st.markdown(f"**🤖 답변**\n\n{message.content}")
 
-        for msg in reversed(st.session_state.messages[-4:]):
-            if isinstance(msg, HumanMessage):
-                st.caption("🙋 " + msg.content[:35])
-
+        if st.session_state.last_sources:
+            with st.expander("📚 마지막 답변의 참고 문서", expanded=False):
+                for source in st.session_state.last_sources:
+                    st.markdown(
+                        f"- **{source['source']}** · {source['category']}"
+                    )
+                    if source.get("description"):
+                        st.caption(source["description"])
     else:
-        st.caption("아직 대화 기록이 없습니다.")
+        st.caption("아직 대화 기록이 없습니다. 위 입력창에서 질문해 보세요.")
+
+    # ChromaDB 저장 상태 표시
+    try:
+        chunk_count = get_vectorstore()._collection.count()
+        st.caption(f"📦 RAG 검색 데이터: {chunk_count:,}개 청크")
+    except Exception:
+        st.caption("📦 RAG 데이터베이스 연결 대기 중")
 
 
-# =========================================================
 # 8. 홈 화면
 # =========================================================
 
 def page_home():
 
-    st.markdown(f"""
-    <div class="page-title">Hello, {escape(st.session_state.user_profile.get("name") or "AIVLE")}! 👋</div>
-    <div class="page-subtitle">{escape(st.session_state.user_profile.get("stage", "에이블러(교육생)"))} · {escape(st.session_state.user_profile.get("track", "DX 컨설턴트 트랙"))}에 맞춘 학습을 시작해 보세요.</div>
+    st.markdown("""
+    <div class="page-title">Hello, AIVLE! 👋</div>
+    <div class="page-subtitle">오늘도 새로운 지식을 함께 배워봐요.</div>
     """, unsafe_allow_html=True)
 
     c1, c2 = st.columns([1, 1])
@@ -2371,66 +2308,42 @@ def page_file_upload():
 # =========================================================
 
 def page_chat():
-
     st.markdown("""
     <div class="page-title">🧠 학습 Q&A</div>
     <div class="page-subtitle">
-        AIVLE School 학습 자료를 기반으로 궁금한 내용을 질문해 보세요.
+        오른쪽 AIVLE AI 챗봇에서 질문하면 이 페이지에서도 대화 내용을 확인할 수 있습니다.
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown("""
     <div class="info-card">
-        <h3>🤖 AIVLE AI Assistant</h3>
+        <h3>🤖 AIVLE RAG Assistant</h3>
         <p>
-            업로드된 교육 자료를 검색하여 근거 기반 답변을 제공합니다.
+            업로드된 학습백서와 교안에서 질문과 관련된 문서를 검색하고,
+            검색 결과를 근거로 답변합니다. 오른쪽 패널의 검색 범위를 선택해
+            전체 문서 또는 교육 자료 중심으로 질문할 수 있습니다.
         </p>
+        <p><b>RAG 흐름</b> : 질문 입력 → 임베딩 기반 유사 문서 검색 → 관련 청크 구성 → GPT 답변 생성</p>
     </div>
     """, unsafe_allow_html=True)
 
-    # 기존 대화 출력
-    for message in st.session_state.messages:
+    section_title(1, "대화 기록")
+    if not st.session_state.messages:
+        st.info("아직 대화가 없습니다. 화면 오른쪽의 챗봇 입력창에서 질문을 시작해 주세요.")
+    else:
+        for message in st.session_state.messages:
+            role = "user" if isinstance(message, HumanMessage) else "assistant"
+            with st.chat_message(role):
+                st.markdown(message.content)
 
-        role = "user" if isinstance(message, HumanMessage) else "assistant"
-
-        with st.chat_message(role):
-            st.markdown(message.content)
-
-    # 질문 입력
-    user_input = st.chat_input("궁금한 내용을 입력하세요.")
-
-    if user_input:
-
-        st.session_state.messages.append(
-            HumanMessage(content=user_input)
-        )
-
-        with st.chat_message("user"):
-            st.markdown(user_input)
-
-        with st.chat_message("assistant"):
-
-            try:
-                chain = get_chain()
-
-                response_stream = chain.stream({
-                    "input": user_input
-                })
-
-                full_response = st.write_stream(response_stream)
-
-                st.session_state.messages.append(
-                    AIMessage(content=full_response)
+        if st.session_state.last_sources:
+            section_title(2, "마지막 답변 참고 문서")
+            for source in st.session_state.last_sources:
+                st.markdown(
+                    f"- **{source['source']}** · {source['category']}"
                 )
-
-            except Exception as e:
-
-                st.error(
-                    "답변 생성 중 오류가 발생했습니다. "
-                    "OpenAI API 키와 ChromaDB 설정을 확인해 주세요."
-                )
-
-                st.caption(str(e))
+                if source.get("description"):
+                    st.caption(source["description"])
 
 
 # =========================================================
@@ -2785,35 +2698,32 @@ def page_ontology():
 # 15. 최종 화면 구성
 # =========================================================
 
-if not st.session_state.profile_completed:
-    page_profile()
-else:
-    main_col, side_col = st.columns(
-        [3.2, 1.15],
-        gap="large"
-    )
+main_col, side_col = st.columns(
+    [3.2, 1.15],
+    gap="large"
+)
 
-    with main_col:
-        menu = st.session_state.menu
+with main_col:
+    menu = st.session_state.menu
 
-        if menu == "🏠 홈":
-            page_home()
-        elif menu == "👋 소개":
-            page_intro()
-        elif menu == "📚 교육과정":
-            page_education()
-        elif menu == "💼 취업과정":
-            page_career()
-        elif menu == "📁 포트폴리오":
-            page_portfolio()
-        elif menu == "📂 파일 불러오기":
-            page_file_upload()
-        elif menu == "🕸️ 온톨로지":
-            page_ontology()
-        elif menu == "🧠 학습 Q&A":
-            page_chat()
-        else:
-            page_home()
+    if menu == "🏠 홈":
+        page_home()
+    elif menu == "👋 소개":
+        page_intro()
+    elif menu == "📚 교육과정":
+        page_education()
+    elif menu == "💼 취업과정":
+        page_career()
+    elif menu == "📁 포트폴리오":
+        page_portfolio()
+    elif menu == "📂 파일 불러오기":
+        page_file_upload()
+    elif menu == "🕸️ 온톨로지":
+        page_ontology()
+    elif menu == "🧠 학습 Q&A":
+        page_chat()
+    else:
+        page_home()
 
-    with side_col:
-        right_panel()
+with side_col:
+    right_panel()
