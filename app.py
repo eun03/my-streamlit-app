@@ -1,4 +1,3 @@
-
 import streamlit as st
 import calendar
 from datetime import date, datetime
@@ -59,20 +58,40 @@ section[data-testid="stSidebar"] * {
     color: white;
 }
 
-section[data-testid="stSidebar"] [data-testid="stRadio"] label {
-    padding: 10px 12px;
+/* 사이드바 메뉴 버튼 */
+section[data-testid="stSidebar"] div.stButton > button {
+    width: 100%;
+    min-height: 43px;
+    text-align: left;
+    padding: 8px 13px;
+    margin: 2px 0;
+    border: 1px solid transparent;
     border-radius: 12px;
-    font-weight: 700;
+    background: transparent;
+    color: white !important;
+    font-size: 15px;
+    font-weight: 800;
+    box-shadow: none;
 }
 
-section[data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
-    background: rgba(255,255,255,0.2);
+section[data-testid="stSidebar"] div.stButton > button:hover {
+    background: rgba(255,255,255,0.22);
+    border-color: rgba(255,255,255,0.35);
+    color: white !important;
 }
 
-/* 사이드바 라디오 선택 */
-section[data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) {
+section[data-testid="stSidebar"] div.stButton > button[kind="primary"] {
     background: #eafafa;
-    color: #193653;
+    border-color: #eafafa;
+    color: #193653 !important;
+}
+
+/* 로고는 사이드바 기본 글자색 규칙의 영향을 받지 않도록 고정 */
+.logo-box .logo-main {
+    color: #173956 !important;
+}
+.logo-box .logo-sub {
+    color: #28b7c0 !important;
 }
 
 /* 사이드바 로고 */
@@ -557,6 +576,9 @@ if "calendar_year" not in st.session_state:
 if "calendar_month" not in st.session_state:
     st.session_state.calendar_month = date.today().month
 
+if "menu" not in st.session_state:
+    st.session_state.menu = "🏠 홈"
+
 
 # =========================================================
 # 5. 공통 HTML 함수
@@ -607,8 +629,19 @@ def subject_card(icon, title, description):
 # 6. 왼쪽 사이드바
 # =========================================================
 
+menu_items = [
+    "🏠 홈",
+    "👋 소개",
+    "📚 교육과정",
+    "💼 취업과정",
+    "📁 포트폴리오",
+    "📂 파일 불러오기",
+    "🕸️ 온톨로지"
+]
+
 with st.sidebar:
 
+    # AIVLE 로고
     st.markdown("""
     <div class="logo-box">
         <div class="logo-main">◢ AIVLE</div>
@@ -616,25 +649,20 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    menu = st.radio(
-        "메뉴",
-        [
-            "🏠 홈",
-            "👋 소개",
-            "📚 교육과정",
-            "💼 취업과정",
-            "📁 포트폴리오",
-            "📂 파일 불러오기",
-            "🕸️ 온톨로지",
-            "⚙️ 관리자"
-        ],
-        label_visibility="collapsed"
-    )
+    # 라디오 버튼 대신 일반 버튼으로 메뉴 구성
+    for item in menu_items:
+        if st.button(
+            item,
+            key=f"nav_{item}",
+            use_container_width=True,
+            type="primary" if st.session_state.menu == item else "secondary"
+        ):
+            st.session_state.menu = item
+            st.rerun()
 
-    st.markdown("---")
+    st.markdown("<br><hr>", unsafe_allow_html=True)
 
-    st.markdown("### ⚙️ 관리자")
-
+    # 관리자 메뉴는 제거하고 문서 업로드/관리는 유지
     st.markdown("#### 📄 백서 및 학습 문서 업로드")
 
     uploaded_file = st.file_uploader(
@@ -646,7 +674,6 @@ with st.sidebar:
     st.caption("200MB per file · PDF, TXT, DOCX")
 
     st.markdown("---")
-
     st.markdown("#### 📑 등록된 문서 관리")
 
     st.selectbox(
@@ -663,7 +690,7 @@ with st.sidebar:
 
     st.markdown("""
     <br><br>
-    <div style="font-size:12px; line-height:1.8;">
+    <div style="font-size:12px; line-height:1.8; color:white;">
         AIVLE School<br>
         Learning Assistant
     </div>
@@ -1284,33 +1311,14 @@ def page_placeholder(title, description, icon):
 # 13. 최종 화면 구성
 # =========================================================
 
-page_map = {
-    "🏠 홈": page_home,
-    "👋 소개": page_intro,
-    "📚 교육과정": page_education,
-    "💼 취업과정": lambda: page_placeholder(
-        "취업과정", "취업 준비와 커리어 개발", "💼"
-    ),
-    "📁 포트폴리오": lambda: page_placeholder(
-        "포트폴리오", "프로젝트 및 개인 포트폴리오 관리", "📁"
-    ),
-    "📂 파일 불러오기": lambda: page_placeholder(
-        "파일 불러오기", "학습 자료 업로드 및 관리", "📂"
-    ),
-    "🕸️ 온톨로지": lambda: page_placeholder(
-        "온톨로지", "교육 및 취업 지식 관계 탐색", "🕸️"
-    ),
-    "⚙️ 관리자": lambda: page_placeholder(
-        "관리자", "학습 자료 및 시스템 관리", "⚙️"
-    )
-}
-
 main_col, side_col = st.columns(
     [3.2, 1.15],
     gap="large"
 )
 
 with main_col:
+
+    menu = st.session_state.menu
 
     if menu == "🏠 홈":
         page_home()
@@ -1339,11 +1347,6 @@ with main_col:
     elif menu == "🕸️ 온톨로지":
         page_placeholder(
             "온톨로지", "교육 및 취업 지식 관계 탐색", "🕸️"
-        )
-
-    elif menu == "⚙️ 관리자":
-        page_placeholder(
-            "관리자", "학습 자료 및 시스템 관리", "⚙️"
         )
 
 with side_col:
