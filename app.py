@@ -442,13 +442,22 @@ with st.sidebar:
         🏠　홈
     </div>
     <div class="menu-item">
-        📚　학습 도우미
+        👋　소개
     </div>
     <div class="menu-item">
-        📁　학습 자료
+        📚　교육과정
     </div>
     <div class="menu-item">
-        💬　대화 기록
+        💼　취업과정
+    </div>
+    <div class="menu-item">
+        🗂️　포트폴리오
+    </div>
+    <div class="menu-item">
+        📂　파일 불러오기
+    </div>
+    <div class="menu-item">
+        🧩　온톨로지
     </div>
     """)
 
