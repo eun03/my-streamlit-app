@@ -677,7 +677,7 @@ def answer_with_rag(question, search_scope="전체 문서"):
 
 
 def process_rag_question(question, search_scope="전체 문서"):
-    """사이드바와 학습 Q&A 페이지가 함께 사용하는 공통 질문 처리 함수."""
+    """오른쪽 AIVLE AI 챗봇에서 사용하는 공통 RAG 질문 처리 함수."""
     question = (question or "").strip()
     if not question:
         return
@@ -798,8 +798,7 @@ menu_items = [
     "💼 취업과정",
     "📁 포트폴리오",
     "📂 파일 불러오기",
-    "🕸️ 온톨로지",
-    "🧠 학습 Q&A"
+    "🕸️ 온톨로지"
 ]
 
 with st.sidebar:
@@ -886,6 +885,15 @@ def right_panel():
         💬 AIVLE AI 챗봇
     </div>
     """, unsafe_allow_html=True)
+
+    # 문서 목록의 말풍선 버튼을 누르면 해당 문서 요약 질문을 챗봇에서 바로 실행합니다.
+    pending_question = st.session_state.pop("pending_chat_question", None)
+    if pending_question:
+        process_rag_question(
+            pending_question,
+            st.session_state.get("sidebar_search_scope", "전체 문서")
+        )
+        st.rerun()
 
     # 검색 범위 선택: 백서/교안은 업로드 시 '교육 자료' 카테고리로 등록해야 검색됩니다.
     search_scope = st.selectbox(
@@ -1003,7 +1011,7 @@ def page_home():
         info_card("📚", "학습 자료", "교육 문서 기반 질문")
 
     with q2:
-        info_card("🧠", "학습 Q&A", "AI 문서 검색 및 답변")
+        info_card("💬", "AIVLE AI 챗봇", "오른쪽 사이드바에서 바로 질문")
 
     with q3:
         info_card("🚀", "미니프로젝트", "프로젝트 정보 확인")
@@ -2237,9 +2245,8 @@ def page_file_upload():
                         st.session_state.document_preview = doc["name"]
 
                 with action_cols[1]:
-                    if st.button("💬", key=f"ask_doc_{index}", help="이 문서에 대해 질문하기"):
-                        st.session_state.menu = "🧠 학습 Q&A"
-                        st.session_state.document_question_hint = (
+                    if st.button("💬", key=f"ask_doc_{index}", help="오른쪽 AIVLE AI 챗봇으로 이 문서 질문하기"):
+                        st.session_state.pending_chat_question = (
                             f"'{doc['name']}' 문서의 주요 내용을 요약해 주세요."
                         )
                         st.rerun()
@@ -2301,49 +2308,6 @@ def page_file_upload():
         f"현재 세션에 등록된 문서: {len(documents)}개 · "
         f"저장된 청크: {sum(doc['chunk_count'] for doc in documents)}개"
     )
-
-
-# =========================================================
-# 12. 학습 Q&A 페이지
-# =========================================================
-
-def page_chat():
-    st.markdown("""
-    <div class="page-title">🧠 학습 Q&A</div>
-    <div class="page-subtitle">
-        오른쪽 AIVLE AI 챗봇에서 질문하면 이 페이지에서도 대화 내용을 확인할 수 있습니다.
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div class="info-card">
-        <h3>🤖 AIVLE RAG Assistant</h3>
-        <p>
-            업로드된 학습백서와 교안에서 질문과 관련된 문서를 검색하고,
-            검색 결과를 근거로 답변합니다. 오른쪽 패널의 검색 범위를 선택해
-            전체 문서 또는 교육 자료 중심으로 질문할 수 있습니다.
-        </p>
-        <p><b>RAG 흐름</b> : 질문 입력 → 임베딩 기반 유사 문서 검색 → 관련 청크 구성 → GPT 답변 생성</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    section_title(1, "대화 기록")
-    if not st.session_state.messages:
-        st.info("아직 대화가 없습니다. 화면 오른쪽의 챗봇 입력창에서 질문을 시작해 주세요.")
-    else:
-        for message in st.session_state.messages:
-            role = "user" if isinstance(message, HumanMessage) else "assistant"
-            with st.chat_message(role):
-                st.markdown(message.content)
-
-        if st.session_state.last_sources:
-            section_title(2, "마지막 답변 참고 문서")
-            for source in st.session_state.last_sources:
-                st.markdown(
-                    f"- **{source['source']}** · {source['category']}"
-                )
-                if source.get("description"):
-                    st.caption(source["description"])
 
 
 # =========================================================
@@ -2720,8 +2684,6 @@ with main_col:
         page_file_upload()
     elif menu == "🕸️ 온톨로지":
         page_ontology()
-    elif menu == "🧠 학습 Q&A":
-        page_chat()
     else:
         page_home()
 
