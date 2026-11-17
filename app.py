@@ -1,5 +1,7 @@
-
 import streamlit as st
+import calendar as pycalendar
+import uuid
+from datetime import date
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.prompts import ChatPromptTemplate
@@ -182,6 +184,58 @@ div[data-testid="stTextInput"] input {
     font-weight: 800;
     color: #19334d;
     margin: 15px 0;
+}
+
+/* 출결 및 일정 달력 */
+.st-key-calendar_panel {
+    background: #ffffff;
+    border-radius: 24px;
+    padding: 22px;
+    margin: 18px 0 24px 0;
+    box-shadow: 0 5px 20px rgba(50,80,100,0.06);
+}
+.calendar-panel {
+    background: #ffffff;
+    border-radius: 24px;
+    padding: 22px;
+    margin: 18px 0 24px 0;
+    box-shadow: 0 5px 20px rgba(50,80,100,0.06);
+}
+.calendar-caption {
+    color: #91a2ae;
+    font-size: 12px;
+    margin-top: -6px;
+    margin-bottom: 12px;
+}
+.calendar-weekday {
+    text-align: center;
+    color: #7f929f;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 7px 0;
+}
+.calendar-legend {
+    color: #8496a3;
+    font-size: 11px;
+    margin-top: 10px;
+}
+.calendar-subcard {
+    background: #f7fafc;
+    border: 1px solid #edf2f5;
+    border-radius: 16px;
+    padding: 15px;
+    min-height: 150px;
+}
+.calendar-subtitle {
+    color: #19334d;
+    font-weight: 800;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+/* 달력 날짜 버튼 */
+.st-key-calendar_day button {
+    min-height: 58px;
 }
 
 /* 채팅 영역 */
@@ -409,6 +463,30 @@ if "messages" not in st.session_state:
 if "pending_prompt" not in st.session_state:
     st.session_state.pending_prompt = None
 
+# 달력/출결/일정 데이터
+if "calendar_month" not in st.session_state:
+    st.session_state.calendar_month = date.today().replace(day=1)
+
+if "selected_calendar_date" not in st.session_state:
+    st.session_state.selected_calendar_date = date.today()
+
+if "calendar_events" not in st.session_state:
+    st.session_state.calendar_events = []
+
+if "attendance_records" not in st.session_state:
+    st.session_state.attendance_records = {}
+
+
+def events_on(day):
+    """해당 날짜에 진행 중인 일정 목록을 반환합니다."""
+    result = []
+    for event in st.session_state.calendar_events:
+        start = date.fromisoformat(event["start"])
+        end = date.fromisoformat(event["end"])
+        if start <= day <= end:
+            result.append(event)
+    return result
+
 
 # 검색창 콜백
 def submit_search():
@@ -625,6 +703,190 @@ with left:
             </div>
         </div>
         """)
+
+    # ======================================
+    # 출결 및 일정 관리 달력
+    # ======================================
+    st.html("""
+    <div class="section-title">📅 출결 & 일정 관리</div>
+    <div class="calendar-caption">
+        교육 일정과 개인 학습 일정을 확인하고 출결 상태를 기록해 보세요.
+    </div>
+    """)
+
+    with st.container(key="calendar_panel"):
+        # 월 이동 및 월 표시
+        month_prev, month_title, month_next = st.columns([1, 5, 1])
+
+        with month_prev:
+            if st.button("‹", key="calendar_prev_month", use_container_width=True):
+                current_month = st.session_state.calendar_month
+                if current_month.month == 1:
+                    st.session_state.calendar_month = date(current_month.year - 1, 12, 1)
+                else:
+                    st.session_state.calendar_month = date(current_month.year, current_month.month - 1, 1)
+                st.rerun()
+
+        with month_title:
+            st.markdown(
+                f"<h3 style='text-align:center;color:#19334d;margin:4px 0 15px 0;'>"
+                f"{st.session_state.calendar_month.year}년 {st.session_state.calendar_month.month}월"
+                f"</h3>",
+                unsafe_allow_html=True
+            )
+
+        with month_next:
+            if st.button("›", key="calendar_next_month", use_container_width=True):
+                current_month = st.session_state.calendar_month
+                if current_month.month == 12:
+                    st.session_state.calendar_month = date(current_month.year + 1, 1, 1)
+                else:
+                    st.session_state.calendar_month = date(current_month.year, current_month.month + 1, 1)
+                st.rerun()
+
+        # 요일 헤더
+        weekday_cols = st.columns(7)
+        weekdays = ["일", "월", "화", "수", "목", "금", "토"]
+        for col, weekday in zip(weekday_cols, weekdays):
+            with col:
+                st.markdown(f"<div class='calendar-weekday'>{weekday}</div>", unsafe_allow_html=True)
+
+        # 달력 날짜 버튼
+        month_matrix = pycalendar.Calendar(firstweekday=6).monthdayscalendar(
+            st.session_state.calendar_month.year,
+            st.session_state.calendar_month.month
+        )
+
+        for week_index, week in enumerate(month_matrix):
+            day_cols = st.columns(7)
+            for col_index, day_num in enumerate(week):
+                with day_cols[col_index]:
+                    if day_num == 0:
+                        st.write("")
+                    else:
+                        this_day = date(
+                            st.session_state.calendar_month.year,
+                            st.session_state.calendar_month.month,
+                            day_num
+                        )
+                        day_events = events_on(this_day)
+                        attendance = st.session_state.attendance_records.get(this_day.isoformat(), {})
+                        marker_parts = []
+                        if day_events:
+                            marker_parts.append("📌")
+                        if attendance:
+                            marker_parts.append("✓")
+                        marker = " ".join(marker_parts)
+                        is_selected = this_day == st.session_state.selected_calendar_date
+                        label = f"{day_num}\n{marker}" if marker else str(day_num)
+                        if st.button(
+                            label,
+                            key=f"calendar_day_{this_day.isoformat()}",
+                            type="primary" if is_selected else "secondary",
+                            use_container_width=True
+                        ):
+                            st.session_state.selected_calendar_date = this_day
+                            st.rerun()
+
+        st.markdown(
+            "<div class='calendar-legend'>📌 일정 있음　 ✓ 출결 기록 있음　 날짜를 누르면 상세 내용을 확인할 수 있습니다.</div>",
+            unsafe_allow_html=True
+        )
+
+        st.divider()
+        selected_day = st.session_state.selected_calendar_date
+        st.markdown(
+            f"<div class='calendar-subtitle'>🗓️ {selected_day.strftime('%Y년 %m월 %d일')} 상세 관리</div>",
+            unsafe_allow_html=True
+        )
+
+        attendance_col, schedule_col = st.columns(2, gap="medium")
+
+        # 출결 관리
+        with attendance_col:
+            st.markdown("<div class='calendar-subtitle'>✅ 출결 기록</div>", unsafe_allow_html=True)
+            saved_attendance = st.session_state.attendance_records.get(selected_day.isoformat(), {})
+            with st.form("attendance_form", clear_on_submit=False):
+                attendance_status = st.selectbox(
+                    "출결 상태",
+                    ["미기록", "출석", "지각", "결석", "공결"],
+                    index=["미기록", "출석", "지각", "결석", "공결"].index(saved_attendance.get("status", "미기록"))
+                )
+                attendance_memo = st.text_input(
+                    "메모",
+                    value=saved_attendance.get("memo", ""),
+                    placeholder="출결 관련 메모를 입력하세요."
+                )
+                save_attendance = st.form_submit_button("출결 저장", use_container_width=True)
+
+            if save_attendance:
+                if attendance_status == "미기록":
+                    st.session_state.attendance_records.pop(selected_day.isoformat(), None)
+                else:
+                    st.session_state.attendance_records[selected_day.isoformat()] = {
+                        "status": attendance_status,
+                        "memo": attendance_memo
+                    }
+                st.success("출결 정보가 저장되었습니다.")
+                st.rerun()
+
+            if saved_attendance:
+                st.caption(
+                    f"현재 기록: {saved_attendance.get('status', '')}"
+                    + (f" · {saved_attendance.get('memo')}" if saved_attendance.get("memo") else "")
+                )
+
+        # 일정 등록 및 조회
+        with schedule_col:
+            st.markdown("<div class='calendar-subtitle'>📝 일정 등록</div>", unsafe_allow_html=True)
+            with st.form("schedule_form", clear_on_submit=True):
+                event_title = st.text_input("일정 이름", placeholder="예: 데이터 분석 강의")
+                event_type = st.selectbox("일정 유형", ["교육", "과제", "시험", "프로젝트", "개인", "기타"])
+                event_start = st.date_input("시작일", value=selected_day)
+                event_end = st.date_input("종료일", value=selected_day)
+                event_memo = st.text_input("상세 내용", placeholder="장소 또는 준비 사항")
+                save_event = st.form_submit_button("일정 추가", use_container_width=True)
+
+            if save_event:
+                if not event_title.strip():
+                    st.warning("일정 이름을 입력해 주세요.")
+                elif event_end < event_start:
+                    st.warning("종료일은 시작일보다 빠를 수 없습니다.")
+                else:
+                    st.session_state.calendar_events.append({
+                        "id": str(uuid.uuid4()),
+                        "title": event_title.strip(),
+                        "type": event_type,
+                        "start": event_start.isoformat(),
+                        "end": event_end.isoformat(),
+                        "memo": event_memo.strip()
+                    })
+                    st.success("일정이 추가되었습니다.")
+                    st.rerun()
+
+        # 선택 날짜 일정 목록 및 삭제
+        selected_events = events_on(selected_day)
+        if selected_events:
+            st.markdown("**등록된 일정**")
+            for event in selected_events:
+                event_col, delete_col = st.columns([8, 1])
+                with event_col:
+                    date_range = event["start"] if event["start"] == event["end"] else f"{event['start']} ~ {event['end']}"
+                    st.markdown(
+                        f"📌 **{event['title']}**　`{event['type']}`<br>"
+                        f"<span style='color:#8b9aa6;font-size:12px;'>{date_range}"
+                        f"{' · ' + event['memo'] if event['memo'] else ''}</span>",
+                        unsafe_allow_html=True
+                    )
+                with delete_col:
+                    if st.button("🗑️", key=f"delete_event_{event['id']}"):
+                        st.session_state.calendar_events = [
+                            item for item in st.session_state.calendar_events
+                            if item["id"] != event["id"]
+                        ]
+                        st.rerun()
+        else:
+            st.caption("선택한 날짜에 등록된 일정이 없습니다.")
 
     # ======================================
     # 채팅 영역
